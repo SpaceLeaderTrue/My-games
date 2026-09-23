@@ -1,0 +1,2130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>SPACE — Cockpit</title>
+  <style>
+    :root {
+      --text: #e8eef8;
+      --muted: rgba(210, 220, 235, 0.65);
+      --accent: #7eb6ff;
+      --warn: #ffb454;
+      --ok: #5ddea8;
+      --panel: #0c1016;
+      --display: "Orbitron", "Avenir Next", "Segoe UI", sans-serif;
+      --mono: "Share Tech Mono", "Menlo", "Consolas", monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden; background: #000; color: var(--text);
+      font-family: var(--mono);
+      touch-action: none; user-select: none; -webkit-user-select: none;
+    }
+    .stage { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; }
+    #stars { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
+    .cockpit {
+      position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; pointer-events: none;
+      height: clamp(196px, 32vh, 260px); transform-origin: 50% 100%; will-change: transform;
+    }
+    .dash {
+      position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+      width: min(940px, 100%); height: 100%;
+      background: linear-gradient(to top, #05070a 0%, #10151d 55%, #1a222e 100%);
+      border-radius: 18px 18px 0 0; border-top: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 -14px 36px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);
+      display: grid; grid-template-columns: 1.05fr 1.45fr 1.05fr; gap: 10px;
+      padding: 12px 14px 70px; align-items: stretch;
+      z-index: 1;
+      transition: transform 0.55s cubic-bezier(0.22, 0.8, 0.28, 1), opacity 0.45s ease, filter 0.45s ease;
+    }
+    .cockpit.immersive .dash {
+      transform: translateX(-50%) translateY(78%);
+      opacity: 0.26;
+      filter: saturate(0.65) brightness(0.9);
+      pointer-events: none;
+      box-shadow: 0 -8px 20px rgba(0,0,0,0.35);
+    }
+    .dash::before {
+      content: ""; position: absolute; left: 12%; right: 12%; top: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(126,182,255,0.5), transparent);
+    }
+    .screen {
+      border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: var(--panel);
+      position: relative; overflow: hidden;
+      box-shadow: inset 0 0 22px rgba(0,0,0,0.7); min-height: 0; padding: 8px;
+    }
+    .screen .scan {
+      position: absolute; inset: 0; z-index: 3; pointer-events: none;
+      background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(255,255,255,0.025) 2px 3px);
+    }
+    .screen .label {
+      position: relative; z-index: 4; font-family: var(--display); font-size: 8px;
+      letter-spacing: 0.18em; text-transform: uppercase; color: rgba(180, 205, 235, 0.7); margin-bottom: 4px;
+    }
+    .screen.nav { display: grid; grid-template-rows: auto 1fr auto; gap: 5px; }
+    .adi {
+      position: relative; z-index: 1; width: min(100%, 130px); aspect-ratio: 1.2; max-height: 86px;
+      margin: 0 auto; border-radius: 50%; overflow: hidden;
+      border: 2px solid rgba(180,200,230,0.28); background: #041018;
+      box-shadow: inset 0 0 16px rgba(0,0,0,0.85);
+    }
+    .adi-ball {
+      position: absolute; left: -45%; top: -90%; width: 190%; height: 280%;
+      transform-origin: 50% 50%; will-change: transform;
+    }
+    .adi-sky { height: 50%; background: linear-gradient(#1a4a7a, #2f74b0); }
+    .adi-ground { height: 50%; background: linear-gradient(#7a5630, #3a2814); }
+    .adi-horizon {
+      position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px;
+      background: #f0f4ff; box-shadow: 0 0 6px rgba(255,255,255,0.5);
+    }
+    .adi-ladder {
+      position: absolute; left: 32%; right: 32%; top: 50%; height: 0;
+      border-top: 1px solid rgba(255,255,255,0.3);
+    }
+    .adi-ladder::before, .adi-ladder::after {
+      content: ""; position: absolute; left: 12%; right: 12%; height: 0;
+      border-top: 1px solid rgba(255,255,255,0.22);
+    }
+    .adi-ladder::before { top: -16px; }
+    .adi-ladder::after { top: 16px; }
+    .adi-wing {
+      position: absolute; z-index: 2; left: 50%; top: 50%; width: 56%; height: 2px;
+      margin-left: -28%; margin-top: -1px; background: #ffb454;
+      box-shadow: 0 0 8px rgba(255,180,84,0.5);
+    }
+    .adi-wing::before {
+      content: ""; position: absolute; left: 50%; top: -5px; width: 8px; height: 8px;
+      margin-left: -4px; border: 2px solid #ffb454; border-radius: 50%;
+    }
+    .compass {
+      position: relative; z-index: 1; height: 22px; overflow: hidden; border-radius: 3px;
+      background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.08);
+    }
+    .compass-tape {
+      position: absolute; top: 0; height: 100%; display: flex; align-items: center;
+      will-change: transform; font-size: 10px; letter-spacing: 0.06em; color: rgba(220,235,255,0.85);
+    }
+    .compass-tape span { width: 36px; text-align: center; flex-shrink: 0; }
+    .compass-tape span.card {
+      color: var(--warn); font-family: var(--display); font-size: 9px;
+    }
+    .compass-needle {
+      position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+      background: var(--warn); z-index: 2; box-shadow: 0 0 6px rgba(255,180,84,0.55);
+    }
+    .screen.main {
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(90, 40, 140, 0.38), transparent 55%),
+        linear-gradient(165deg, #241033, #12081c 60%, #0a0612);
+      display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 6px; padding: 8px 10px;
+    }
+    .speed-wrap {
+      position: relative; z-index: 1; display: grid; grid-template-columns: auto 1fr auto;
+      gap: 8px; align-items: center;
+    }
+    .speed-wrap .spd-label {
+      font-family: var(--display); font-size: 8px; letter-spacing: 0.14em;
+      color: rgba(220,230,255,0.55);
+    }
+    .speed-wrap .spd-track {
+      height: 7px; border-radius: 2px; background: rgba(255,255,255,0.08);
+      overflow: hidden; border: 1px solid rgba(255,255,255,0.06);
+    }
+    .speed-wrap .spd-fill {
+      height: 100%; width: 0%; background: linear-gradient(90deg, #5a8fff, #d4e6ff);
+      box-shadow: 0 0 10px rgba(126,182,255,0.45);
+    }
+    .speed-wrap .spd-val {
+      font-size: 12px; font-variant-numeric: tabular-nums; color: #e8ddff;
+      min-width: 2.6em; text-align: right;
+    }
+    .readout-row {
+      position: relative; z-index: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;
+    }
+    .readout {
+      background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 4px; padding: 4px 6px; min-width: 0;
+    }
+    .readout .k {
+      font-family: var(--display); font-size: 7px; letter-spacing: 0.14em;
+      color: rgba(200,210,240,0.5);
+    }
+    .readout .v {
+      font-size: 14px; letter-spacing: 0.06em; color: #f0e8ff;
+      font-variant-numeric: tabular-nums; white-space: nowrap;
+    }
+    .radar {
+      position: relative; z-index: 1; height: 30px; border-radius: 3px;
+      background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.07); overflow: hidden;
+    }
+    .radar-sweep {
+      position: absolute; inset: -50%;
+      background: conic-gradient(from 0deg, transparent 0 68%, rgba(126,182,255,0.22) 88%, transparent 100%);
+      animation: sweep 3.2s linear infinite; transform-origin: 50% 50%;
+    }
+    .radar-grid {
+      position: absolute; inset: 0; opacity: 0.45;
+      background:
+        linear-gradient(rgba(126,182,255,0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(126,182,255,0.14) 1px, transparent 1px);
+      background-size: 12px 12px;
+    }
+    @keyframes sweep { to { transform: rotate(360deg); } }
+    .status-row {
+      position: relative; z-index: 1; display: flex; align-items: center;
+      justify-content: space-between; gap: 8px; margin-top: auto;
+    }
+    .status-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .pill {
+      font-family: var(--display); font-size: 7px; letter-spacing: 0.12em;
+      padding: 3px 7px; border-radius: 2px; border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(200,210,230,0.55); background: rgba(0,0,0,0.25);
+    }
+    .pill.on {
+      color: #04120c; background: var(--ok); border-color: transparent;
+      box-shadow: 0 0 10px rgba(93,222,168,0.45);
+    }
+    .pill.warn {
+      color: #1a1000; background: var(--warn); border-color: transparent;
+      box-shadow: 0 0 10px rgba(255,180,84,0.4);
+    }
+    .brand-mini {
+      font-family: var(--display); font-size: 11px; letter-spacing: 0.32em;
+      color: rgba(230,220,255,0.9);
+    }
+    .screen.eng {
+      display: grid;
+      grid-template-rows: auto auto auto auto;
+      gap: 3px;
+      align-content: start;
+    }
+    .thrust-gauge {
+      position: relative; z-index: 1; width: 100%; max-width: 108px; margin: 0 auto; aspect-ratio: 1.45;
+    }
+    .thrust-gauge svg { width: 100%; height: 100%; overflow: visible; }
+    .thrust-val {
+      position: absolute; left: 0; right: 0; bottom: 6%; text-align: center;
+      font-family: var(--display); font-size: 15px; color: var(--accent);
+      text-shadow: 0 0 12px rgba(126,182,255,0.35);
+    }
+    .thrust-val small {
+      display: block; font-size: 7px; letter-spacing: 0.16em;
+      color: rgba(180,200,230,0.55); margin-top: 2px;
+    }
+    .eng-bars { position: relative; z-index: 1; display: grid; gap: 5px; }
+    .ebar {
+      display: grid; grid-template-columns: 32px 1fr 26px; gap: 4px; align-items: center;
+      font-size: 8px; color: rgba(190,210,235,0.65);
+    }
+    .ebar .track { height: 5px; background: rgba(255,255,255,0.08); border-radius: 1px; overflow: hidden; }
+    .ebar .fill { height: 100%; width: 0%; border-radius: 1px; }
+    .ebar .fill.thr { background: linear-gradient(90deg, #3d7cff, #9ec1ff); }
+    .ebar .fill.heat { background: linear-gradient(90deg, #5ddea8, #ffb454 70%, #ff6b4a); }
+    .ebar .fill.cool { background: linear-gradient(90deg, #3a9ecc, #7ed0ff); }
+    .ebar .num { text-align: right; font-variant-numeric: tabular-nums; color: rgba(220,230,255,0.85); }
+    .audio-btn {
+      position: relative; z-index: 5; pointer-events: auto; cursor: pointer;
+      margin-top: 4px; width: 100%;
+      font-family: var(--display); font-size: 7px; letter-spacing: 0.14em;
+      padding: 5px 6px; border-radius: 3px;
+      border: 1px solid rgba(126,182,255,0.35);
+      background: rgba(0, 12, 28, 0.65); color: rgba(190, 215, 255, 0.85);
+    }
+    .audio-btn:active, .audio-btn.on {
+      background: rgba(126, 182, 255, 0.22);
+      border-color: rgba(180, 210, 255, 0.7);
+      color: #e8f0ff;
+      box-shadow: 0 0 12px rgba(126,182,255,0.25);
+    }
+    .audio-btn.galactic {
+      border-color: rgba(200, 140, 255, 0.5);
+      color: rgba(230, 200, 255, 0.9);
+      background: rgba(28, 8, 48, 0.7);
+    }
+    .audio-btn.galactic.on {
+      background: rgba(180, 100, 255, 0.28);
+      box-shadow: 0 0 14px rgba(180,100,255,0.35);
+    }
+    .yoke-wrap {
+      position: absolute; left: 50%; bottom: clamp(4px, 1vh, 12px); transform: translateX(-50%);
+      width: clamp(180px, 34vw, 260px); height: clamp(78px, 12vh, 108px); z-index: 6;
+    }
+    .yoke {
+      position: relative; width: 100%; height: 100%; transform-origin: 50% 85%;
+      transform: translateY(var(--yoke-pull, 0px)) rotate(var(--yoke-rot, 0deg)); will-change: transform;
+    }
+    .yoke-column {
+      position: absolute; left: 50%; bottom: 0; width: 18px; height: 48%; transform: translateX(-50%);
+      border-radius: 8px; background: linear-gradient(90deg, #12151a, #2b313c, #12151a);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    }
+    .yoke-bar {
+      position: absolute; left: 6%; right: 6%; top: 28%; height: 16px; border-radius: 10px;
+      background: linear-gradient(#2f3642, #151920);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 6px 14px rgba(0,0,0,0.45);
+    }
+    .grip {
+      position: absolute; top: 8%; width: 34px; height: 58%; border-radius: 14px;
+      background: linear-gradient(90deg, #0f1217, #2a303a 45%, #0f1217);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1), 0 8px 16px rgba(0,0,0,0.4);
+    }
+    .grip.l { left: 0; } .grip.r { right: 0; }
+    .yoke-hub {
+      position: absolute; left: 50%; top: 18%; width: 72px; height: 52px; transform: translateX(-50%);
+      border-radius: 10px; background: radial-gradient(circle at 50% 40%, #243041, #0c1016 70%);
+      border: 1px solid rgba(255,255,255,0.12); display: grid; place-items: center;
+      box-shadow: 0 0 18px rgba(158, 193, 255, 0.12);
+    }
+    .yoke-hub svg { width: 88%; height: auto; }
+    .yoke-hub path { fill: #f2f2f2; }
+    .pad {
+      position: absolute; right: max(10px, env(safe-area-inset-right));
+      bottom: max(14px, env(safe-area-inset-bottom)); z-index: 9;
+      display: grid; grid-template-columns: 50px 50px 50px; grid-template-rows: 50px 50px 50px;
+      gap: 7px; pointer-events: auto;
+      width: 164px; height: 164px;
+    }
+    .pad.stick-mode {
+      display: block;
+      background: transparent;
+      border: none;
+    }
+    .pad.stick-mode > button { display: none; }
+    .pad button {
+      border: 1px solid rgba(180,200,230,0.2); background: rgba(10, 12, 16, 0.78);
+      color: var(--text); border-radius: 11px; font-size: 16px; backdrop-filter: blur(8px);
+    }
+    .pad button.held, .pad button:active {
+      background: rgba(158, 193, 255, 0.22); border-color: rgba(158, 193, 255, 0.55);
+    }
+    .pad .up { grid-column: 2; grid-row: 1; }
+    .pad .left { grid-column: 1; grid-row: 2; }
+    .pad .right { grid-column: 3; grid-row: 2; }
+    .pad .down { grid-column: 2; grid-row: 3; }
+    .joy {
+      display: none;
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(20, 28, 40, 0.35) 0 38%, transparent 40%),
+        rgba(8, 10, 14, 0.72);
+      border: 1px solid rgba(180,200,230,0.22);
+      backdrop-filter: blur(8px);
+      touch-action: none;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04), 0 8px 20px rgba(0,0,0,0.35);
+    }
+    .pad.stick-mode .joy { display: block; }
+    .joy::before {
+      content: ""; position: absolute; left: 50%; top: 50%;
+      width: 62%; height: 62%; transform: translate(-50%, -50%);
+      border-radius: 50%; border: 1px dashed rgba(180,200,230,0.18);
+      pointer-events: none;
+    }
+    .joy-knob {
+      position: absolute; left: 50%; top: 50%;
+      width: 58px; height: 58px; margin: -29px 0 0 -29px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #3a4558, #12161e 70%);
+      border: 1px solid rgba(200,215,235,0.35);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12);
+      pointer-events: none;
+      transition: box-shadow 0.15s ease;
+    }
+    .joy.active .joy-knob {
+      box-shadow: 0 0 16px rgba(158,193,255,0.35), 0 6px 14px rgba(0,0,0,0.45);
+      border-color: rgba(158,193,255,0.65);
+    }
+    .ctrl-toggle {
+      position: absolute;
+      top: max(10px, env(safe-area-inset-top));
+      left: max(10px, env(safe-area-inset-left));
+      z-index: 10;
+      pointer-events: auto;
+      font-family: var(--display); font-size: 12px; letter-spacing: 0.14em;
+      padding: 10px 14px; border-radius: 12px; cursor: pointer;
+      border: 1px solid rgba(180,200,230,0.2);
+      background: rgba(6, 8, 12, 0.72); color: rgba(210,220,235,0.85);
+      backdrop-filter: blur(10px);
+      min-width: 56px; text-align: center;
+    }
+    .ctrl-toggle small {
+      display: block; margin-top: 3px; font-family: var(--mono);
+      font-size: 8px; letter-spacing: 0.04em; opacity: 0.65; text-transform: none;
+    }
+    .ctrl-toggle.on {
+      background: rgba(158, 193, 255, 0.22);
+      border-color: rgba(158, 193, 255, 0.55);
+      color: #f2f7ff;
+    }
+    .gearbox {
+      position: absolute;
+      left: max(10px, env(safe-area-inset-left));
+      bottom: calc(max(14px, env(safe-area-inset-bottom)) + 78px);
+      z-index: 9;
+      pointer-events: auto;
+      width: 72px;
+      padding: 8px 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(180,200,230,0.2);
+      background: rgba(8, 10, 14, 0.82);
+      backdrop-filter: blur(8px);
+      user-select: none;
+      touch-action: none;
+    }
+    .gearbox .gear-label {
+      font-family: var(--display); font-size: 8px; letter-spacing: 0.16em;
+      color: rgba(180,200,230,0.55); text-align: center; margin-bottom: 6px;
+    }
+    .gearbox .gear-track {
+      position: relative;
+      height: 108px;
+      margin: 0 auto;
+      width: 18px;
+      border-radius: 9px;
+      background: linear-gradient(#0a0c10, #171b22);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.65);
+    }
+    .gearbox .gear-slot {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      width: 28px; height: 22px;
+      display: grid; place-items: center;
+      font-family: var(--display); font-size: 10px; letter-spacing: 0.08em;
+      color: rgba(200,210,230,0.45); cursor: pointer;
+      border: none; background: transparent; padding: 0;
+    }
+    .gearbox .gear-slot[data-gear="D"] { top: 2px; }
+    .gearbox .gear-slot[data-gear="N"] { top: 43px; }
+    .gearbox .gear-slot[data-gear="R"] { bottom: 2px; }
+    .gearbox .gear-slot.on-d { color: #9ec1ff; }
+    .gearbox .gear-slot.on-n { color: #e8eef8; }
+    .gearbox .gear-slot.on-r { color: #ffb454; }
+    .gearbox .gear-knob {
+      position: absolute; left: 50%; top: 50%;
+      width: 26px; height: 26px; margin: -13px 0 0 -13px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #4a5568, #151a22 70%);
+      border: 1px solid rgba(220,230,245,0.35);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.14);
+      transition: top 0.28s cubic-bezier(0.22, 0.8, 0.28, 1), background 0.2s ease, border-color 0.2s ease;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .gearbox.gear-D .gear-knob { top: 14%; }
+    .gearbox.gear-N .gear-knob { top: 50%; }
+    .gearbox.gear-R .gear-knob { top: 86%; }
+    .gearbox.gear-R .gear-knob {
+      background: radial-gradient(circle at 35% 30%, #8a5a30, #2a1810 70%);
+      border-color: rgba(255,180,110,0.55);
+    }
+    .gearbox.gear-D .gear-knob {
+      background: radial-gradient(circle at 35% 30%, #3d6a9a, #101820 70%);
+      border-color: rgba(158,193,255,0.55);
+    }
+    .gearbox.braking .gear-knob {
+      box-shadow: 0 0 12px rgba(255,180,90,0.45), 0 4px 10px rgba(0,0,0,0.45);
+    }
+    .star-looks {
+      position: absolute; top: max(10px, env(safe-area-inset-top));
+      left: 50%; transform: translateX(-50%); z-index: 10;
+      display: flex; gap: 6px; pointer-events: auto;
+      padding: 6px; border-radius: 12px;
+      background: rgba(6, 8, 12, 0.72); border: 1px solid rgba(180,200,230,0.16);
+      backdrop-filter: blur(10px);
+    }
+    .star-looks button {
+      font-family: var(--display); font-size: 10px; letter-spacing: 0.12em;
+      padding: 8px 12px; border-radius: 8px; cursor: pointer;
+      border: 1px solid rgba(180,200,230,0.2);
+      background: transparent; color: rgba(210,220,235,0.75);
+      min-width: 72px;
+    }
+    .star-looks button small {
+      display: block; margin-top: 3px; font-family: var(--mono);
+      font-size: 8px; letter-spacing: 0.04em; opacity: 0.65; text-transform: none;
+    }
+    .star-looks button.on {
+      background: rgba(158, 193, 255, 0.22);
+      border-color: rgba(158, 193, 255, 0.55);
+      color: #f2f7ff;
+    }
+    .view-toggle {
+      position: absolute;
+      top: max(10px, env(safe-area-inset-top));
+      right: max(10px, env(safe-area-inset-right));
+      z-index: 10;
+      pointer-events: auto;
+      font-family: var(--display); font-size: 12px; letter-spacing: 0.14em;
+      padding: 10px 14px; border-radius: 12px; cursor: pointer;
+      border: 1px solid rgba(180,200,230,0.2);
+      background: rgba(6, 8, 12, 0.72); color: rgba(210,220,235,0.85);
+      backdrop-filter: blur(10px);
+      min-width: 56px; text-align: center;
+    }
+    .view-toggle small {
+      display: block; margin-top: 3px; font-family: var(--mono);
+      font-size: 8px; letter-spacing: 0.04em; opacity: 0.65; text-transform: none;
+    }
+    .view-toggle.on {
+      background: rgba(158, 193, 255, 0.22);
+      border-color: rgba(158, 193, 255, 0.55);
+      color: #f2f7ff;
+    }
+    @media (max-width: 520px) {
+      .cockpit { height: clamp(180px, 34vh, 230px); }
+      .readout .v { font-size: 12px; }
+      .adi { max-height: 70px; }
+      .star-looks button { min-width: 58px; padding: 7px 8px; font-size: 9px; }
+      .cockpit.immersive .dash { transform: translateX(-50%) translateY(82%); opacity: 0.22; }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage" id="stage">
+    <canvas id="stars" aria-hidden="true"></canvas>
+    <div class="star-looks" id="starLooks" role="group" aria-label="Стиль звёзд">
+      <button type="button" data-look="pin" class="on" aria-pressed="true">A · PIN<small>точки</small></button>
+      <button type="button" data-look="streak" aria-pressed="false">B · STREAK<small>следы</small></button>
+      <button type="button" data-look="glow" aria-pressed="false">C · GLOW<small>свечение</small></button>
+    </div>
+    <button type="button" class="ctrl-toggle" id="ctrlToggle" aria-pressed="false" aria-label="Режим управления">J<small>стик</small></button>
+    <button type="button" class="view-toggle" id="viewToggle" aria-pressed="false" aria-label="Спрятать панель">B<small>панель</small></button>
+    <div class="cockpit">
+      <div class="dash">
+        <div class="screen nav">
+          <div class="scan"></div>
+          <div class="label">Nav · Attitude</div>
+          <div class="adi" aria-hidden="true">
+            <div class="adi-ball" id="adiBall">
+              <div class="adi-sky"></div>
+              <div class="adi-ground"></div>
+              <div class="adi-horizon"></div>
+              <div class="adi-ladder"></div>
+            </div>
+            <div class="adi-wing"></div>
+          </div>
+          <div class="compass">
+            <div class="compass-needle"></div>
+            <div class="compass-tape" id="compassTape"></div>
+          </div>
+        </div>
+
+        <div class="screen main">
+          <div class="scan"></div>
+          <div class="speed-wrap" aria-label="Скорость">
+            <span class="spd-label">SPD</span>
+            <div class="spd-track"><div class="spd-fill" id="spdFill"></div></div>
+            <span class="spd-val" id="spdVal">0.3</span>
+          </div>
+          <div class="label">Flight computer</div>
+          <div class="readout-row">
+            <div class="readout"><div class="k">HDG</div><div class="v" id="hdgVal">000</div></div>
+            <div class="readout"><div class="k">PIT</div><div class="v" id="pitVal">0</div></div>
+            <div class="readout"><div class="k">BNK</div><div class="v" id="bankVal">L0</div></div>
+          </div>
+          <div class="radar" aria-hidden="true">
+            <div class="radar-grid"></div>
+            <div class="radar-sweep"></div>
+          </div>
+          <div class="status-row">
+            <div class="status-pills">
+              <span class="pill" id="pillThr">THR</span>
+              <span class="pill" id="pillNav">NAV</span>
+              <span class="pill on">SYS</span>
+            </div>
+            <div class="brand-mini">SPACE</div>
+          </div>
+        </div>
+
+        <div class="screen eng">
+          <div class="scan"></div>
+          <div class="label">Eng · Propulsion</div>
+          <div class="thrust-gauge">
+            <svg viewBox="0 0 100 70" aria-hidden="true">
+              <path d="M12 58 A38 38 0 0 1 88 58" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="7" stroke-linecap="round"/>
+              <path id="thrustArc" d="M12 58 A38 38 0 0 1 88 58" fill="none" stroke="#7eb6ff" stroke-width="7" stroke-linecap="round"
+                stroke-dasharray="126" stroke-dashoffset="126"
+                style="filter: drop-shadow(0 0 6px rgba(126,182,255,0.55)); transition: stroke-dashoffset 0.08s linear;"/>
+            </svg>
+            <div class="thrust-val"><span id="thrustPct">0%</span><small>POWER</small></div>
+          </div>
+          <div class="eng-bars">
+            <div class="ebar"><span>PWR</span><div class="track"><div class="fill thr" id="barThr"></div></div><span class="num" id="numThr">0</span></div>
+            <div class="ebar"><span>HEAT</span><div class="track"><div class="fill heat" id="barHeat"></div></div><span class="num" id="numHeat">12</span></div>
+            <div class="ebar"><span>COOL</span><div class="track"><div class="fill cool" id="barCool"></div></div><span class="num" id="numCool">55</span></div>
+          </div>
+          <button type="button" class="audio-btn" id="audioStyleBtn" aria-label="Стиль звука">SND · CORE</button>
+        </div>
+      </div>
+
+      <div class="yoke-wrap">
+        <div class="yoke" id="yoke">
+          <div class="yoke-column"></div>
+          <div class="yoke-bar"></div>
+          <div class="grip l"></div>
+          <div class="grip r"></div>
+          <div class="yoke-hub">
+            <svg viewBox="0 0 595.3 419.5" role="img" aria-label="SPACE">
+              <path d="M210.6,190.8h-23.9c-4.9,0-8.5.5-11,1.4-3.8,1.5-5.7,4.2-5.7,8.2v2.8c0,6,5.8,9,17.4,9h9.1c6.4,0,9.6,1.3,9.6,3.8v3.3c0,2.4-3.2,3.6-9.7,3.6h-23.9c-1.6,0-2.4.8-2.4,2.5v.8c0,1.6.8,2.5,2.4,2.5h23.9c4.6,0,8.2-.4,10.8-1.2,3.9-1.2,5.8-3.9,5.8-8.2v-3.4c0-3.5-2-6-6-7.7-2.9-1.1-6.3-1.7-10.5-1.7h-9.3c-2.9,0-4.9,0-6.1-.3-2.9-.5-4.3-1.6-4.3-3.2v-2.6c0-2.6,3.2-4,9.7-4h23.9c1.6,0,2.5-.8,2.5-2.5v-.8c0-1.6-.8-2.4-2.5-2.4Z"/>
+              <path d="M261.9,192.4c-2.9-1.1-6.2-1.6-9.9-1.6h-28.8c-1.6,0-2.4.8-2.4,2.4v33c0,1.6.8,2.5,2.4,2.5h2c1.6,0,2.5-.8,2.5-2.5v-11.1h24c4.3,0,7.8-.6,10.6-1.9,3.8-1.7,5.7-4.4,5.7-8.2v-5.9c0-3.1-2-5.4-6.1-6.9ZM261.1,204.9c0,.5-.2.9-.3,1.4-.4,1.1-1.3,2-2.4,2.5-1.4.5-3.4.8-6.3.8h-24.4v-13.1h22.2c2.8,0,5.8-.2,8.6.7,1.1.3,2,1.2,2.3,2.3s.4,1.8.4,2.7,0,1.9,0,2.8Z"/>
+              <path d="M373.2,190.8h-24.7c-2.5,0-4.4.1-5.8.4-2.5.4-4.8,1.4-6.6,2.8-2.2,1.7-3.3,3.7-3.3,6.1v18.9c0,3.3,1.7,5.9,5.2,7.7,1.7.9,3.6,1.5,5.6,1.8,1.2.2,3.2.2,6,.2h23.5c1.6,0,2.4-.8,2.4-2.5v-.8c0-1.6-.8-2.5-2.4-2.5h-23.5c-2.8,0-4.8-.2-6-.5-2.6-.7-4-2-4-3.8v-18.8c0-2.4,3-3.6,9-3.6h24.6c1.6,0,2.5-.8,2.5-2.5v-.8c0-1.6-.8-2.4-2.5-2.4Z"/>
+              <path d="M325.5,224.5c-.3-.8-1-1.6-1.5-2.3-1.4-1.9-2.7-3.7-4.1-5.6-1.8-2.4-3.6-4.9-5.3-7.3-1.8-2.5-3.6-5-5.5-7.5-1.8-2.7-3.8-5.2-5.7-7.9-.3-.4-.6-.8-.9-1.3-.9-1.4-2.3-1.9-4-1.9h-.4c-1.7,0-3,.5-4,1.9-.3.4-.6.8-.9,1.3-1.9,2.6-3.9,5.2-5.7,7.9-1.8,2.5-3.6,5-5.5,7.5-1.8,2.4-3.6,4.9-5.3,7.3-1.2,1.6-2.4,3.2-3.6,4.9-.5.7-1,1.4-1.5,2.1-1,1.3-1,3,.3,4.2.7.6,1.6.9,2.6.9s1.9-.5,2.7-1.6l5.8-8.1h29.4l6.1,8.4c.8,1.1,1.7,1.6,2.7,1.6s1.9-.3,2.6-.9c.6-.6,1.1-1.5,1.1-2.3,0-.3,0-.6-.2-.9ZM287.5,212.7l10.7-14.9,10.7,14.9h-21.5Z"/>
+              <path d="M389.4,212.8v6.2c0,2.7,3,4,8.9,4h24.4c1.6,0,2.4.8,2.4,2.4v.8c0,1.6-.8,2.5-2.4,2.5h-24.7c-.8,0-1.7,0-2.9-.2-8.4-.9-12.6-4-12.6-9.3v-18.8c0-3.5,2.1-6.2,6.2-7.9,2.8-1.2,6-1.7,9.9-1.7h24.2c1.6,0,2.4.8,2.4,2.4v.8c0,1.6-.8,2.5-2.4,2.5h-26.4c-4.7.4-7,1.7-7,4v6.6h33.4c.6,0,1.1.1,1.5.3.5.4.7,1,.7,1.9v.8c0,1.6-.8,2.5-2.4,2.5h-33.4Z"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pad" id="pad" aria-label="Управление">
+      <button class="up" data-dir="up" type="button">▲</button>
+      <button class="left" data-dir="left" type="button">◀</button>
+      <button class="right" data-dir="right" type="button">▶</button>
+      <button class="down" data-dir="down" type="button">▼</button>
+      <div class="joy" id="joy" aria-hidden="true">
+        <div class="joy-knob" id="joyKnob"></div>
+      </div>
+    </div>
+  </main>
+  <script>
+    (() => {
+      const canvas = document.getElementById("stars");
+      const ctx = canvas.getContext("2d", { alpha: false }) || canvas.getContext("2d");
+      const spdFill = document.getElementById("spdFill");
+      const spdVal = document.getElementById("spdVal");
+      const hdgVal = document.getElementById("hdgVal");
+      const pitVal = document.getElementById("pitVal");
+      const bankVal = document.getElementById("bankVal");
+      const adiBall = document.getElementById("adiBall");
+      const compassTape = document.getElementById("compassTape");
+      const thrustArc = document.getElementById("thrustArc");
+      const thrustPct = document.getElementById("thrustPct");
+      const barThr = document.getElementById("barThr");
+      const barHeat = document.getElementById("barHeat");
+      const barCool = document.getElementById("barCool");
+      const numThr = document.getElementById("numThr");
+      const numHeat = document.getElementById("numHeat");
+      const numCool = document.getElementById("numCool");
+      const pillThr = document.getElementById("pillThr");
+      const pillNav = document.getElementById("pillNav");
+      const yoke = document.getElementById("yoke");
+      const stage = document.getElementById("stage");
+      const cockpitEl = document.querySelector(".cockpit");
+      let heat = 0.12;
+      let cool = 0.55;
+
+      let STAR_COUNT = 560;
+      let MAX_DEPTH = 1500;
+      const NEAR_Z = 2.2;
+      const FOV = 340;
+
+      // Three named looks — switch live; pick later which pieces to keep
+      const STAR_LOOKS = {
+        pin: {
+          id: "pin",
+          count: 720,
+          maxDepth: 2600,
+          nearPow: 0.55, // bias spawn toward far field
+          sizeFar: [0.85, 1.0],
+          sizeNear: [0.95, 1.05],
+          bright: [0.95, 1.12],
+          atmos0: "rgba(16, 24, 40, 0.1)",
+          atmos1: "rgba(8, 12, 20, 0.04)",
+          coreComp: "source-over",
+          // Depth growth: tiny at infinity → cap at classic A size
+          coreMinFar: 0.35,
+          coreMax: 1.35,
+          growPow: 1.45,
+          coreMin: 0.35,
+          coreScale: 1.0,
+          haloOuter: 0,
+          haloMid: 0,
+          trailThick: 0.48,
+          trailAlpha: 0.7,
+          trailDz: 48,
+          trailMax: 30,
+          trailDepthGate: 0.18,
+          zSpeed: 1.15,
+        },
+        streak: {
+          id: "streak",
+          count: 560,
+          maxDepth: 1500,
+          nearPow: 0.85,
+          sizeFar: [0.65, 0.95],
+          sizeNear: [0.95, 1.45],
+          bright: [0.9, 1.1],
+          atmos0: "rgba(20, 30, 52, 0.14)",
+          atmos1: "rgba(10, 14, 24, 0.06)",
+          coreComp: "lighter",
+          coreMinFar: 1.0,
+          coreMax: 2.8,
+          growPow: 1.1,
+          coreMin: 1.7,
+          coreScale: 1.45,
+          haloOuter: 0.22,
+          haloMid: 0.55,
+          trailThick: 0.85,
+          trailAlpha: 0.9,
+          trailDz: 70,
+          trailMax: 42,
+          trailDepthGate: 0.1,
+          zSpeed: 1.0,
+        },
+        glow: {
+          id: "glow",
+          count: 520,
+          maxDepth: 1400,
+          nearPow: 0.75,
+          sizeFar: [0.85, 1.15],
+          sizeNear: [1.15, 1.85],
+          bright: [0.9, 1.25],
+          atmos0: "rgba(18, 28, 48, 0.08)",
+          atmos1: "rgba(8, 12, 22, 0.03)",
+          coreComp: "lighter",
+          coreMinFar: 1.2,
+          coreMax: 3.4,
+          growPow: 1.05,
+          coreMin: 2.0,
+          coreScale: 1.7,
+          haloOuter: 0.32,
+          haloMid: 0.7,
+          trailThick: 1.05,
+          trailAlpha: 1.0,
+          trailDz: 78,
+          trailMax: 48,
+          trailDepthGate: 0.08,
+          zSpeed: 1.0,
+        },
+      };
+      let starLook = STAR_LOOKS.pin;
+      let immersive = false;
+      let stickMode = false; // false = D-pad buttons, true = analog joystick
+      let joyActive = false;
+      function setImmersive(on) {
+        immersive = !!on;
+        if (cockpitEl) cockpitEl.classList.toggle("immersive", immersive);
+        const btn = document.getElementById("viewToggle");
+        if (btn) {
+          btn.classList.toggle("on", immersive);
+          btn.setAttribute("aria-pressed", immersive ? "true" : "false");
+          btn.innerHTML = immersive ? "B<small>назад</small>" : "B<small>панель</small>";
+        }
+      }
+      function setStickMode(on) {
+        stickMode = !!on;
+        joyActive = false;
+        keys.clear();
+        stickX = 0;
+        stickY = 0;
+        const pad = document.getElementById("pad");
+        const joy = document.getElementById("joy");
+        const knob = document.getElementById("joyKnob");
+        const btn = document.getElementById("ctrlToggle");
+        if (pad) pad.classList.toggle("stick-mode", stickMode);
+        if (joy) {
+          joy.classList.remove("active");
+          joy.setAttribute("aria-hidden", stickMode ? "false" : "true");
+        }
+        if (knob) knob.style.transform = "translate(0px, 0px)";
+        if (btn) {
+          btn.classList.toggle("on", stickMode);
+          btn.setAttribute("aria-pressed", stickMode ? "true" : "false");
+          btn.innerHTML = stickMode ? "J<small>кнопки</small>" : "J<small>стик</small>";
+        }
+      }
+      // Web Audio freezes if setTargetAtTime floods every rAF — push ≤ ~20 Hz
+      const AUDIO_PUSH_MS = 48;
+      const TURN_RATE = 1.1;
+      const PITCH_BOOST = 1.5;
+      const STICK_SMOOTH = 7.5;
+      const RATE_SMOOTH = 5.8;
+      const PITCH_RATE_SMOOTH = 6.2;
+      const BANK_MAX = 0.42;
+      const BANK_SMOOTH = 5.5;
+
+      let stars = [];
+      let w = 0, h = 0, cx = 0, cy = 0;
+      let speed = 0;
+      let thrusting = false;
+      let thrustPointer = false;
+      let thrustGate = false; // after gear change: release gas, then press again
+      let gear = "D"; // D | N | R
+      let gearPending = null; // while braking to a new gear
+      let reverse = false; // true only when gear R is active for motion
+      let braking = false;
+      let hoverRockT = 0;
+      let warpSmooth = 0; // visual trail amount — eases, brightness does not
+      const SPEED_MIN = 0; // true stop (no crawl)
+      const SPEED_MAX = 4.5;
+      const SPEED_MAX_REV = SPEED_MAX * 0.5;
+      const HOVER_SPEED = 0; // parked / neutral — no forward drift
+      const ACCEL = 2.2;
+      const DECEL = 1.35;
+      const BRAKE_DECEL = 3.6;
+      // Free orientation (body: +X right, +Y up, +Z forward)
+      let orient = [0, 0, 0, 1];
+      let stickX = 0;
+      let stickY = 0;
+      let stickSX = 0; // smoothed stick
+      let stickSY = 0;
+      let pitchRate = 0;
+      let yawRate = 0;
+      let camRoll = 0; // visual bank — focus stays center, sky tilts
+      let vanishSX = 0; // soft tunnel focus drift (bending tunnel)
+      let vanishSY = 0;
+      let yokeRotSmooth = 0;
+      let yokePullSmooth = 0;
+      const keys = new Set();
+      let raf = 0;
+
+      function expApproach(current, target, rate, dt) {
+        return current + (target - current) * (1 - Math.exp(-rate * dt));
+      }
+      let prevSpeed = speed;
+      let wasThrusting = false;
+
+      // —— Engine audio ——
+      // Silent until first Space/THRUST → engine start, then continuous
+      let audioCtx = null;
+      let masterGain = null;
+      let engOsc = null;
+      let engOsc2 = null;
+      let engOsc3 = null;
+      let engGain = null;
+      let noiseNode = null;
+      let noiseGain = null;
+      let noiseFilter = null;
+      let windGain = null;
+      let shimmerGain = null;
+      let shimmerOsc = null;
+      let audioReady = false;
+      let audioArmed = false;      // true after first Space
+      let engineStarted = false;   // true after start sequence
+      let audioStyle = "core";     // "core" | "galactic"
+      let engVol = 0;
+      let engTone = 55;
+      let noiseVol = 0;
+      let windVol = 0;
+      let shimmerVol = 0;
+      let lastAudioPush = 0;
+      let appliedOscStyle = null; // only rewrite OscillatorNode.type on change
+      let audioResumePending = false;
+      const audioStyleBtn = document.getElementById("audioStyleBtn");
+      let setGearVisual = () => {};
+
+      function activeGear() {
+        return gearPending || gear;
+      }
+
+      function requestGear(next) {
+        next = String(next || "D").toUpperCase();
+        if (next !== "D" && next !== "N" && next !== "R") return;
+
+        // Tap R again while already in R → release to Neutral (stop)
+        if (next === "R" && gear === "R" && !braking && !gearPending) next = "N";
+
+        if (braking) {
+          if (gearPending !== next) {
+            gearPending = next;
+            setGearVisual();
+          }
+          return;
+        }
+        if (next === gear) {
+          setGearVisual();
+          return;
+        }
+
+        if (thrusting || thrustPointer) thrustGate = true;
+        thrusting = false;
+        thrustPointer = false;
+        if (typeof setThrustVisual === "function") setThrustVisual();
+
+        const spdT = (speed - HOVER_SPEED) / (SPEED_MAX - HOVER_SPEED);
+        if (speed > 0.2) {
+          braking = true;
+          gearPending = next;
+          if (spdT > 0.32) {
+            armAudioFromThrust();
+            playEngineBrake(Math.min(1, Math.max(0, spdT)));
+          }
+          setGearVisual();
+          return;
+        }
+
+        commitGear(next);
+      }
+
+      function commitGear(next) {
+        gear = next;
+        gearPending = null;
+        braking = false;
+        reverse = gear === "R";
+        speed = 0; // hard stop after shift — no residual drift
+        thrusting = false;
+        thrustPointer = false;
+        if (typeof setThrustVisual === "function") setThrustVisual();
+        setGearVisual();
+      }
+
+      function canThrust() {
+        return !braking && !thrustGate && gear !== "N";
+      }
+
+      function speedCap() {
+        return gear === "R" ? SPEED_MAX_REV : SPEED_MAX;
+      }
+
+      function speedNorm() {
+        if (gear === "N" || speed <= 0.001) return 0;
+        const cap = speedCap();
+        return Math.max(0, Math.min(1, speed / Math.max(0.001, cap)));
+      }
+
+      // Actual flight speed used by stars — 0 in neutral / while parked
+      function driveSpeed() {
+        if (braking || gear === "N") return 0;
+        if ((gear === "D" || gear === "R") && !thrusting && speed < 0.05) return 0;
+        return Math.max(0, speed);
+      }
+
+      function ensureAudio() {
+        if (audioCtx) {
+          if (audioCtx.state === "suspended" && !audioResumePending) {
+            audioResumePending = true;
+            audioCtx.resume().finally(() => { audioResumePending = false; });
+          }
+          return audioCtx;
+        }
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        audioCtx = new AC();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = 0.22;
+        masterGain.connect(audioCtx.destination);
+
+        engGain = audioCtx.createGain();
+        engGain.gain.value = 0;
+        engOsc = audioCtx.createOscillator();
+        engOsc.type = "sawtooth";
+        engOsc.frequency.value = 55;
+        const engFilter = audioCtx.createBiquadFilter();
+        engFilter.type = "lowpass";
+        engFilter.frequency.value = 420;
+        engFilter.Q.value = 0.7;
+        engOsc2 = audioCtx.createOscillator();
+        engOsc2.type = "triangle";
+        engOsc2.frequency.value = 82;
+        const eng2Gain = audioCtx.createGain();
+        eng2Gain.gain.value = 0.35;
+        engOsc3 = audioCtx.createOscillator();
+        engOsc3.type = "sine";
+        engOsc3.frequency.value = 110;
+        const eng3Gain = audioCtx.createGain();
+        eng3Gain.gain.value = 0; // used in galactic mode
+        engOsc.connect(engFilter);
+        engFilter.connect(engGain);
+        engOsc2.connect(eng2Gain);
+        eng2Gain.connect(engGain);
+        engOsc3.connect(eng3Gain);
+        eng3Gain.connect(engGain);
+        engGain.connect(masterGain);
+        engOsc.start();
+        engOsc2.start();
+        engOsc3.start();
+        engOsc2._gain = eng2Gain;
+        engOsc3._gain = eng3Gain;
+        engOsc._filter = engFilter;
+
+        const bufLen = Math.floor(audioCtx.sampleRate * 0.5);
+        const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+        noiseNode = audioCtx.createBufferSource();
+        noiseNode.buffer = buf;
+        noiseNode.loop = true;
+        noiseFilter = audioCtx.createBiquadFilter();
+        noiseFilter.type = "bandpass";
+        noiseFilter.frequency.value = 800;
+        noiseFilter.Q.value = 0.6;
+        noiseGain = audioCtx.createGain();
+        noiseGain.gain.value = 0;
+        windGain = audioCtx.createGain();
+        windGain.gain.value = 0;
+        const windFilter = audioCtx.createBiquadFilter();
+        windFilter.type = "highpass";
+        windFilter.frequency.value = 1200;
+        noiseNode.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(masterGain);
+        noiseNode.connect(windFilter);
+        windFilter.connect(windGain);
+        windGain.connect(masterGain);
+        noiseNode.start();
+        noiseNode._windFilter = windFilter;
+
+        // Intergalactic shimmer layer
+        shimmerGain = audioCtx.createGain();
+        shimmerGain.gain.value = 0;
+        shimmerOsc = audioCtx.createOscillator();
+        shimmerOsc.type = "sine";
+        shimmerOsc.frequency.value = 220;
+        const shimLFO = audioCtx.createOscillator();
+        shimLFO.frequency.value = 0.15;
+        const shimLFOGain = audioCtx.createGain();
+        shimLFOGain.gain.value = 40;
+        shimLFO.connect(shimLFOGain);
+        shimLFOGain.connect(shimmerOsc.frequency);
+        shimmerOsc.connect(shimmerGain);
+        shimmerGain.connect(masterGain);
+        shimmerOsc.start();
+        shimLFO.start();
+        shimmerOsc._lfo = shimLFO;
+
+        audioReady = true;
+        return audioCtx;
+      }
+
+      function playEngineStart() {
+        if (!ensureAudio() || !audioReady) return;
+        const t0 = audioCtx.currentTime;
+        // Crank / spool-up
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        const f = audioCtx.createBiquadFilter();
+        o.type = "sawtooth";
+        f.type = "lowpass";
+        o.connect(f); f.connect(g); g.connect(masterGain);
+        o.frequency.setValueAtTime(28, t0);
+        o.frequency.exponentialRampToValueAtTime(90, t0 + 0.55);
+        o.frequency.exponentialRampToValueAtTime(58, t0 + 1.1);
+        f.frequency.setValueAtTime(180, t0);
+        f.frequency.exponentialRampToValueAtTime(700, t0 + 0.7);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.16, t0 + 0.12);
+        g.gain.exponentialRampToValueAtTime(0.09, t0 + 0.7);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.25);
+        o.start(t0);
+        o.stop(t0 + 1.3);
+
+        // Ignition noise burst (separate one-shot source)
+        const ibuf = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate * 0.5), audioCtx.sampleRate);
+        const idata = ibuf.getChannelData(0);
+        for (let i = 0; i < idata.length; i++) idata[i] = (Math.random() * 2 - 1) * (1 - i / idata.length);
+        const ign = audioCtx.createBufferSource();
+        ign.buffer = ibuf;
+        const ng = audioCtx.createGain();
+        const nf = audioCtx.createBiquadFilter();
+        nf.type = "bandpass";
+        nf.frequency.value = 900;
+        ign.connect(nf); nf.connect(ng); ng.connect(masterGain);
+        ng.gain.setValueAtTime(0.0001, t0);
+        ng.gain.exponentialRampToValueAtTime(0.08, t0 + 0.08);
+        ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
+        ign.start(t0);
+        ign.stop(t0 + 0.55);
+
+        setTimeout(() => { engineStarted = true; }, 900);
+      }
+
+      function armAudioFromThrust() {
+        if (audioArmed) return;
+        audioArmed = true;
+        ensureAudio();
+        playEngineStart();
+      }
+
+      function playWhoosh(rising) {
+        if (!audioArmed || !audioReady || !engineStarted) return;
+        try {
+          const t0 = audioCtx.currentTime;
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          const f = audioCtx.createBiquadFilter();
+          const gal = audioStyle === "galactic";
+          o.type = "sine";
+          f.type = "bandpass";
+          f.Q.value = gal ? 2.2 : 4;
+          o.connect(f); f.connect(g); g.connect(masterGain);
+          if (rising) {
+            const a = gal ? 90 : 120;
+            const b = gal ? 720 : 480;
+            o.frequency.setValueAtTime(a, t0);
+            o.frequency.exponentialRampToValueAtTime(b, t0 + (gal ? 0.55 : 0.35));
+            f.frequency.setValueAtTime(gal ? 300 : 400, t0);
+            f.frequency.exponentialRampToValueAtTime(gal ? 2400 : 1800, t0 + (gal ? 0.55 : 0.35));
+            g.gain.setValueAtTime(0.0001, t0);
+            g.gain.exponentialRampToValueAtTime(gal ? 0.1 : 0.12, t0 + 0.06);
+            g.gain.exponentialRampToValueAtTime(0.0001, t0 + (gal ? 0.65 : 0.4));
+            o.start(t0);
+            o.stop(t0 + 0.85);
+          } else {
+            o.frequency.setValueAtTime(gal ? 520 : 360, t0);
+            o.frequency.exponentialRampToValueAtTime(gal ? 55 : 70, t0 + (gal ? 0.8 : 0.55));
+            f.frequency.setValueAtTime(gal ? 2000 : 1400, t0);
+            f.frequency.exponentialRampToValueAtTime(gal ? 200 : 280, t0 + (gal ? 0.8 : 0.55));
+            g.gain.setValueAtTime(0.0001, t0);
+            g.gain.exponentialRampToValueAtTime(0.1, t0 + 0.05);
+            g.gain.exponentialRampToValueAtTime(0.0001, t0 + (gal ? 0.9 : 0.6));
+            o.start(t0);
+            o.stop(t0 + 1.0);
+          }
+        } catch (_) { /* ignore one-shot audio glitches */ }
+      }
+
+      // Engine braking rumble — used when R is hit at high speed
+      function playEngineBrake(intensity) {
+        if (!audioArmed) return;
+        ensureAudio();
+        if (!audioReady || !audioCtx) return;
+        try {
+          const t0 = audioCtx.currentTime;
+          const dur = 0.75 + intensity * 0.85;
+          const amp = 0.08 + intensity * 0.14;
+
+          const o = audioCtx.createOscillator();
+          const o2 = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          const f = audioCtx.createBiquadFilter();
+          o.type = "sawtooth";
+          o2.type = "triangle";
+          f.type = "lowpass";
+          f.Q.value = 0.9;
+          o.connect(f);
+          o2.connect(f);
+          f.connect(g);
+          g.connect(masterGain);
+
+          const hi = 140 + intensity * 160;
+          const lo = 38;
+          o.frequency.setValueAtTime(hi, t0);
+          o.frequency.exponentialRampToValueAtTime(lo, t0 + dur);
+          o2.frequency.setValueAtTime(hi * 0.66, t0);
+          o2.frequency.exponentialRampToValueAtTime(lo * 0.8, t0 + dur);
+          f.frequency.setValueAtTime(900 + intensity * 700, t0);
+          f.frequency.exponentialRampToValueAtTime(180, t0 + dur);
+          g.gain.setValueAtTime(0.0001, t0);
+          g.gain.exponentialRampToValueAtTime(amp, t0 + 0.05);
+          g.gain.exponentialRampToValueAtTime(amp * 0.55, t0 + dur * 0.45);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+          o.start(t0);
+          o2.start(t0);
+          o.stop(t0 + dur + 0.05);
+          o2.stop(t0 + dur + 0.05);
+        } catch (_) { /* ignore */ }
+      }
+
+      function updateEngineAudio(dt, spdT, thrustingNow) {
+        if (!audioArmed || !audioReady) {
+          prevSpeed = speed;
+          wasThrusting = thrustingNow;
+          return;
+        }
+        // Resume once — never spam .resume() from the render loop
+        if (audioCtx.state === "suspended" && !audioResumePending) {
+          audioResumePending = true;
+          audioCtx.resume().finally(() => { audioResumePending = false; });
+        }
+
+        const accel = speed - prevSpeed;
+        if (engineStarted) {
+          if (thrustingNow && !wasThrusting) playWhoosh(true);
+          if (!thrustingNow && wasThrusting && speed > SPEED_MIN + 0.15) playWhoosh(false);
+        }
+        wasThrusting = thrustingNow;
+
+        const gal = audioStyle === "galactic";
+        const startMute = engineStarted ? 1 : 0.15;
+        let targetTone, targetEng, targetNoise, targetWind, targetShim;
+        const brakingNow = braking;
+
+        if (gal) {
+          targetTone = 36 + spdT * 70 + (thrustingNow ? 18 : 0) + Math.max(0, accel) * 25;
+          targetEng = (0.03 + spdT * 0.1) * (thrustingNow ? 1.2 : 0.7) * startMute;
+          targetNoise = 0;
+          targetWind = 0;
+          targetShim = (0.015 + spdT * 0.04 + (thrustingNow ? 0.02 : 0)) * startMute;
+        } else {
+          targetTone = 48 + spdT * 95 + (thrustingNow ? 28 : 0) + Math.max(0, accel) * 40;
+          targetEng = (0.04 + spdT * 0.14) * (thrustingNow ? 1.35 : 0.75) * startMute;
+          targetNoise = 0;
+          targetWind = 0;
+          targetShim = 0;
+        }
+
+        if (brakingNow) {
+          // Falling rumble while engine-braking into reverse/forward
+          targetTone = Math.max(32, targetTone * 0.55 - 12);
+          targetEng = Math.max(targetEng, (0.07 + spdT * 0.12) * startMute);
+        }
+
+        // Smooth in JS every frame; push to AudioParams sparingly
+        engTone = expApproach(engTone, targetTone, brakingNow ? 10 : 6, dt);
+        engVol = expApproach(engVol, targetEng, thrustingNow || brakingNow ? 8 : 3.5, dt);
+        noiseVol = expApproach(noiseVol, targetNoise, 7, dt);
+        windVol = expApproach(windVol, targetWind, 5, dt);
+        shimmerVol = expApproach(shimmerVol, targetShim, 4, dt);
+
+        const nowMs = performance.now();
+        const styleChanged = appliedOscStyle !== audioStyle;
+        if (!styleChanged && nowMs - lastAudioPush < AUDIO_PUSH_MS) {
+          prevSpeed = speed;
+          return;
+        }
+        lastAudioPush = nowMs;
+
+        if (styleChanged) {
+          appliedOscStyle = audioStyle;
+          engOsc.type = gal ? "sine" : "sawtooth";
+          engOsc2.type = gal ? "sine" : "triangle";
+        }
+
+        const t = audioCtx.currentTime;
+        // Replace prior targets instead of stacking automation events
+        engOsc.frequency.cancelScheduledValues(t);
+        engOsc2.frequency.cancelScheduledValues(t);
+        engOsc3.frequency.cancelScheduledValues(t);
+        engGain.gain.cancelScheduledValues(t);
+        engOsc._filter.frequency.cancelScheduledValues(t);
+        noiseGain.gain.cancelScheduledValues(t);
+        noiseFilter.frequency.cancelScheduledValues(t);
+        windGain.gain.cancelScheduledValues(t);
+        noiseNode._windFilter.frequency.cancelScheduledValues(t);
+        shimmerGain.gain.cancelScheduledValues(t);
+        shimmerOsc.frequency.cancelScheduledValues(t);
+        engOsc3._gain.gain.cancelScheduledValues(t);
+
+        engOsc.frequency.setTargetAtTime(engTone, t, 0.05);
+        engOsc2.frequency.setTargetAtTime(engTone * (gal ? 1.01 : 1.5), t, 0.05);
+        engOsc3.frequency.setTargetAtTime(engTone * 2.02, t, 0.06);
+        engGain.gain.setTargetAtTime(Math.max(0, engVol), t, 0.06);
+        engOsc._filter.frequency.setTargetAtTime(
+          (gal ? 600 : 280) + spdT * (gal ? 1400 : 900) + (thrustingNow ? 200 : 0), t, 0.08
+        );
+        noiseGain.gain.setTargetAtTime(0, t, 0.08);
+        windGain.gain.setTargetAtTime(0, t, 0.08);
+        shimmerGain.gain.setTargetAtTime(Math.max(0, shimmerVol), t, 0.1);
+        shimmerOsc.frequency.setTargetAtTime(180 + spdT * 260, t, 0.12);
+        engOsc3._gain.gain.setTargetAtTime(gal ? 0.45 : 0, t, 0.12);
+
+        prevSpeed = speed;
+      }
+
+      function setAudioStyle(style) {
+        audioStyle = style;
+        // Force next audio push to apply oscillator waveform
+        appliedOscStyle = null;
+        lastAudioPush = 0;
+        if (!audioStyleBtn) return;
+        const gal = style === "galactic";
+        audioStyleBtn.textContent = gal ? "SND · GALAX" : "SND · CORE";
+        audioStyleBtn.classList.toggle("galactic", gal);
+        audioStyleBtn.classList.toggle("on", gal);
+      }
+      if (audioStyleBtn) {
+        audioStyleBtn.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setAudioStyle(audioStyle === "core" ? "galactic" : "core");
+        });
+      }
+
+      function qMul(a, b) {
+        return [
+          a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+          a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+          a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+          a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2],
+        ];
+      }
+      function qConj(q) {
+        return [-q[0], -q[1], -q[2], q[3]];
+      }
+      function qNorm(q) {
+        const n = Math.hypot(q[0], q[1], q[2], q[3]) || 1;
+        return [q[0] / n, q[1] / n, q[2] / n, q[3] / n];
+      }
+      function qAxisAngle(ax, ay, az, ang) {
+        const h = ang * 0.5;
+        const s = Math.sin(h);
+        const len = Math.hypot(ax, ay, az) || 1;
+        return [(ax / len) * s, (ay / len) * s, (az / len) * s, Math.cos(h)];
+      }
+      function qRotate(q, v) {
+        const p = [v.x, v.y, v.z, 0];
+        const r = qMul(qMul(q, p), qConj(q));
+        return { x: r[0], y: r[1], z: r[2] };
+      }
+      function forwardWorld() {
+        return qRotate(orient, { x: 0, y: 0, z: 1 });
+      }
+      function eulerFromOrient() {
+        const f = forwardWorld();
+        const heading = Math.atan2(f.x, f.z);
+        const pitch = Math.asin(Math.max(-1, Math.min(1, -f.y)));
+        return { heading, pitch };
+      }
+
+      function buildCompass() {
+        const marks = [];
+        for (let d = -40; d <= 400; d += 10) {
+          const a = ((d % 360) + 360) % 360;
+          const label = a === 0 ? "N" : a === 90 ? "E" : a === 180 ? "S" : a === 270 ? "W" : String(a).padStart(3, "0");
+          const cls = (a % 90 === 0) ? "card" : "";
+          marks.push(`<span class="${cls}" data-deg="${d}">${label}</span>`);
+        }
+        compassTape.innerHTML = marks.join("");
+      }
+      let compassCenter = 0;
+      function updateCompass(hdgDeg) {
+        // Find span for heading and center it
+        const tick = 36;
+        // tape starts at -40°, so offset of heading from -40 is (hdg+40)/10 * tick
+        const x = compassCenter - ((hdgDeg + 40) / 10) * tick - tick / 2;
+        compassTape.style.transform = `translateX(${x.toFixed(2)}px)`;
+      }
+
+      let glowGrad = null;
+      let glowCx = 0, glowCy = 0, glowR = 0;
+      let streakSprite = null;
+      let tipSprite = null;
+
+      function buildSprites() {
+        // Soft elongated glow used as a warped streak (game particle trick)
+        const sw = 256, sh = 48;
+        streakSprite = document.createElement("canvas");
+        streakSprite.width = sw;
+        streakSprite.height = sh;
+        const sctx = streakSprite.getContext("2d");
+        // Build a soft tapered beam: bright tip, faded tail, soft vertical falloff
+        const img = sctx.createImageData(sw, sh);
+        const data = img.data;
+        for (let y = 0; y < sh; y++) {
+          const ny = Math.abs(y - sh / 2) / (sh / 2);
+          const v = Math.pow(Math.max(0, 1 - ny), 2.2);
+          for (let x = 0; x < sw; x++) {
+            const nx = x / (sw - 1);
+            // Tail → tip brightness; slight blue in body
+            const along = Math.pow(nx, 1.45);
+            const a = Math.min(0.85, v * along * 0.95);
+            const i = (y * sw + x) * 4;
+            data[i] = 190 + along * 50;
+            data[i + 1] = 210 + along * 40;
+            data[i + 2] = 255;
+            data[i + 3] = Math.floor(a * 255);
+          }
+        }
+        sctx.putImageData(img, 0, 0);
+
+        tipSprite = document.createElement("canvas");
+        tipSprite.width = 64;
+        tipSprite.height = 64;
+        const tctx = tipSprite.getContext("2d");
+        const rg = tctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        rg.addColorStop(0, "rgba(255,255,255,1)");
+        rg.addColorStop(0.2, "rgba(235,245,255,0.85)");
+        rg.addColorStop(0.5, "rgba(160,200,255,0.28)");
+        rg.addColorStop(1, "rgba(100,150,255,0)");
+        tctx.fillStyle = rg;
+        tctx.fillRect(0, 0, 64, 64);
+      }
+
+      function resize() {
+        if (compassTape && compassTape.parentElement) {
+          compassCenter = compassTape.parentElement.clientWidth / 2;
+        }
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        w = window.innerWidth;
+        h = window.innerHeight;
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        canvas.style.width = w + "px";
+        canvas.style.height = h + "px";
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        cx = w / 2;
+        cy = h * 0.42;
+        glowGrad = null;
+        if (!streakSprite) buildSprites();
+      }
+
+      // Frustum half-extent at a given depth (keeps the field full without wrap-jumps)
+      function frustumHalf(z) {
+        return (Math.max(w, h) * 0.55) * (z / FOV);
+      }
+
+      function spawnStar(z, biasX, biasY) {
+        const look = starLook;
+        const u = Math.random();
+        const depth = z ?? (NEAR_Z + Math.pow(u, look.nearPow) * (MAX_DEPTH - NEAR_Z));
+        const half = frustumHalf(depth);
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.sqrt(Math.random()) * half * 0.92;
+        let x = Math.cos(angle) * radius;
+        let y = Math.sin(angle) * radius;
+        if (biasX || biasY) {
+          x += (biasX || 0) * half * 0.06;
+          y += (biasY || 0) * half * 0.05;
+        }
+        const tint = Math.random();
+        const hot = Math.random() > 0.78;
+        const r = hot ? 255 : (220 + Math.floor(tint * 35));
+        const g = hot ? 250 : (230 + Math.floor((1 - tint) * 25));
+        const b = 255;
+        const layer = depth > MAX_DEPTH * 0.55 ? 0 : 1;
+        const sz = layer === 0 ? look.sizeFar : look.sizeNear;
+        return {
+          x, y, z: depth,
+          px: x, py: y, pz: depth,
+          size: sz[0] + Math.random() * (sz[1] - sz[0]),
+          r, g, b,
+          bright: look.bright[0] + Math.random() * (look.bright[1] - look.bright[0]),
+          layer,
+        };
+      }
+
+      function init() {
+        STAR_COUNT = starLook.count;
+        MAX_DEPTH = starLook.maxDepth;
+        stars = Array.from({ length: STAR_COUNT }, () => spawnStar());
+        glowGrad = null;
+      }
+
+      function setStarLook(id) {
+        const next = STAR_LOOKS[id];
+        if (!next || next === starLook) return;
+        starLook = next;
+        init();
+        document.querySelectorAll("#starLooks button").forEach((btn) => {
+          const on = btn.dataset.look === id;
+          btn.classList.toggle("on", on);
+          btn.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+      }
+
+      // Screen radius from depth: speck at far → grow toward camera, hard-capped
+      function starRadius(s, look) {
+        const zSpan = Math.max(1, MAX_DEPTH - NEAR_Z);
+        const t = 1 - Math.min(1, Math.max(0, (s.z - NEAR_Z) / zSpan)); // 0 far → 1 near
+        const grow = Math.pow(t, look.growPow || 1.2);
+        const br = s.bright || 1;
+        const vary = 0.92 + (s.size || 1) * 0.08;
+        const rMin = look.coreMinFar ?? 0.4;
+        const rMax = look.coreMax ?? 1.35;
+        return Math.min(rMax, rMin + (rMax - rMin) * grow * br * vary);
+      }
+
+      function projectCam(x, y, z, roll) {
+        const zz = Math.max(NEAR_Z * 0.5, z);
+        const k = FOV / zz;
+        let sx = x * k;
+        let sy = y * k;
+        if (roll) {
+          const c = Math.cos(roll), s = Math.sin(roll);
+          const rx = sx * c - sy * s;
+          const ry = sx * s + sy * c;
+          sx = rx; sy = ry;
+        }
+        return { x: cx + sx, y: cy + sy, z: zz, k };
+      }
+
+      function rotX(p, a) {
+        const c = Math.cos(a), s = Math.sin(a);
+        return { x: p.x, y: p.y * c - p.z * s, z: p.y * s + p.z * c };
+      }
+      function rotY(p, a) {
+        const c = Math.cos(a), s = Math.sin(a);
+        return { x: p.x * c + p.z * s, y: p.y, z: -p.x * s + p.z * c };
+      }
+
+      function updateFlight(dt) {
+        // Gearbox: D forward, N hover/stop, R reverse — no crawl in N
+        if (braking) {
+          thrusting = false;
+          const spdTBrake = speed / SPEED_MAX;
+          const brake = BRAKE_DECEL + Math.max(0, spdTBrake) * 2.8;
+          speed = Math.max(0, speed - brake * dt);
+          if (speed <= 0.04) {
+            commitGear(gearPending || "N");
+          }
+        } else if (gear === "N") {
+          reverse = false;
+          thrusting = false;
+          speed = expApproach(speed, 0, 8, dt);
+          if (speed < 0.03) speed = 0;
+        } else if (gear === "R") {
+          reverse = true;
+          if (thrusting && canThrust()) {
+            speed = Math.min(SPEED_MAX_REV, speed + ACCEL * 0.92 * dt);
+          } else {
+            speed = expApproach(speed, 0, 5, dt);
+            if (speed < 0.03) speed = 0;
+          }
+        } else {
+          // D — drive
+          reverse = false;
+          if (thrusting && canThrust()) {
+            speed = Math.min(SPEED_MAX, speed + ACCEL * dt);
+          } else {
+            speed = Math.max(0, speed - DECEL * dt);
+            if (speed < 0.03) speed = 0;
+          }
+        }
+
+        if (gear === "R" && speed > SPEED_MAX_REV) {
+          speed = expApproach(speed, SPEED_MAX_REV, 4, dt);
+        }
+
+        const spdT = speedNorm();
+        spdFill.style.width = `${(spdT * 100).toFixed(1)}%`;
+        const gShow = activeGear();
+        spdVal.textContent = (gShow === "R" ? "−" : "") + speed.toFixed(1);
+
+        // Soft stick → ship needs time to change course
+        stickSX = expApproach(stickSX, stickX, STICK_SMOOTH, dt);
+        stickSY = expApproach(stickSY, stickY, STICK_SMOOTH, dt);
+
+        // Snappier turn authority
+        const turnScale = 0.95 + spdT * 0.35;
+        const turn = TURN_RATE * turnScale;
+        const rateSnap = RATE_SMOOTH;
+        const pitchSnap = PITCH_RATE_SMOOTH;
+        let targetPitch = stickSY * turn * PITCH_BOOST;
+        let targetYaw = stickSX * turn;
+
+        // Gentle hover rock when stopped (N / parked)
+        hoverRockT += dt;
+        const hovering = driveSpeed() < 0.05 && !braking;
+        if (hovering) {
+          targetPitch += Math.sin(hoverRockT * 0.95) * 0.085;
+          targetYaw += Math.cos(hoverRockT * 1.2) * 0.07;
+        }
+
+        pitchRate = expApproach(pitchRate, targetPitch, pitchSnap, dt);
+        yawRate = expApproach(yawRate, targetYaw, rateSnap, dt);
+
+        if (Math.abs(pitchRate) > 1e-5) {
+          orient = qNorm(qMul(orient, qAxisAngle(1, 0, 0, pitchRate * dt)));
+        }
+        if (Math.abs(yawRate) > 1e-5) {
+          orient = qNorm(qMul(orient, qAxisAngle(0, 1, 0, yawRate * dt)));
+        }
+
+        // Stronger bank at high speed so turns read clearly
+        const bankCap = BANK_MAX + Math.max(0, spdT - 0.4) * 0.18;
+        let bankTarget = Math.max(-bankCap, Math.min(bankCap, -yawRate * (0.5 + spdT * 0.2)));
+        if (hovering) {
+          bankTarget += Math.sin(hoverRockT * 0.7) * 0.045;
+        }
+        camRoll = expApproach(camRoll, bankTarget, BANK_SMOOTH, dt);
+
+        const yokeRotTarget = stickSX * 48 + (-camRoll * 38);
+        const yokePullTarget = stickSY * 36;
+        const ease = 1 - Math.exp(-6 * dt);
+        yokeRotSmooth += (yokeRotTarget - yokeRotSmooth) * ease;
+        yokePullSmooth += (yokePullTarget - yokePullSmooth) * ease;
+        yoke.style.setProperty("--yoke-rot", `${yokeRotSmooth.toFixed(2)}deg`);
+        yoke.style.setProperty("--yoke-pull", `${yokePullSmooth.toFixed(2)}px`);
+
+        // Subtle cockpit lean with bank
+        if (cockpitEl) {
+          cockpitEl.style.transform = `rotate(${(-camRoll * 12).toFixed(2)}deg)`;
+        }
+
+        const { heading, pitch } = eulerFromOrient();
+        const hdgDeg = ((heading * 180 / Math.PI) % 360 + 360) % 360;
+        const pitDeg = pitch * 180 / Math.PI;
+        const bankDeg = (-camRoll * 180 / Math.PI);
+
+        hdgVal.textContent = String(Math.round(hdgDeg)).padStart(3, "0");
+        pitVal.textContent = (pitDeg >= 0 ? "+" : "") + pitDeg.toFixed(0);
+        bankVal.textContent = (bankDeg >= 0 ? "R" : "L") + Math.abs(bankDeg).toFixed(0);
+
+        // Artificial horizon: nose up → more sky (ball shifts down)
+        const pitchPx = Math.max(-42, Math.min(42, pitDeg * 0.55));
+        adiBall.style.transform =
+          `rotate(${(-camRoll).toFixed(4)}rad) translateY(${pitchPx.toFixed(2)}px)`;
+
+        updateCompass(hdgDeg);
+
+        // Propulsion gauges
+        const thr = spdT;
+        heat = expApproach(heat, thrusting ? 0.35 + thr * 0.6 : 0.1 + thr * 0.2, 1.8, dt);
+        cool = expApproach(cool, thrusting ? 0.35 + (1 - thr) * 0.2 : 0.55 + (1 - thr) * 0.25, 1.6, dt);
+        const arcLen = 126; // approx path length of semicircle
+        thrustArc.style.strokeDashoffset = String(arcLen * (1 - thr));
+        thrustPct.textContent = Math.round(thr * 100) + "%";
+        barThr.style.width = (thr * 100).toFixed(1) + "%";
+        barHeat.style.width = (heat * 100).toFixed(1) + "%";
+        barCool.style.width = (cool * 100).toFixed(1) + "%";
+        numThr.textContent = Math.round(thr * 100) + "";
+        numHeat.textContent = Math.round(heat * 100) + "";
+        numCool.textContent = Math.round(cool * 100) + "";
+        pillThr.classList.toggle("on", thrusting || thr > 0.35);
+        pillThr.classList.toggle("warn", thr > 0.85);
+        pillNav.classList.toggle("on", Math.abs(yawRate) + Math.abs(pitchRate) > 0.15);
+
+        updateEngineAudio(dt, spdT, thrusting);
+
+        if (typeof setThrustVisual === "function") setThrustVisual();
+      }
+
+      function moveStars(dt) {
+        const motion = driveSpeed();
+        const spdT = Math.max(0, Math.min(1, motion / SPEED_MAX));
+        // Mild spin — keep tunnel focus; ship inertia does the rest
+        const spin = 1 + spdT * 0.35;
+        const rx = pitchRate * dt * spin;
+        const ry = -yawRate * dt * spin;
+
+        // Higher speed → faster approach → size ramps up quicker
+        // Neutral / parked: zBase = 0 so we only rock, never crawl forward
+        const zMul = starLook.zSpeed || 1;
+        const zBase = motion * (16 + spdT * 40) * zMul * (dt * 60);
+        const margin = Math.max(w, h) * 0.1;
+
+        for (let i = 0; i < stars.length; i++) {
+          const s = stars[i];
+          s.px = s.x; s.py = s.y; s.pz = s.z;
+
+          let p = { x: s.x, y: s.y, z: s.z };
+          if (rx) p = rotX(p, rx);
+          if (ry) p = rotY(p, ry);
+
+        const depthFactor = 0.55 + (1 - Math.min(p.z, MAX_DEPTH) / MAX_DEPTH) * 1.45;
+        if (reverse) {
+          // Backing up: stars recede into the vanishing point
+          p.z += zBase * depthFactor;
+        } else {
+          p.z -= zBase * depthFactor;
+        }
+
+        const half = frustumHalf(Math.max(p.z, NEAR_Z));
+        const outFwd = !reverse && (
+          p.z <= NEAR_Z ||
+          Math.abs(p.x) > half * 1.7 ||
+          Math.abs(p.y) > half * 1.7
+        );
+        const outRev = reverse && (
+          p.z >= MAX_DEPTH * 0.98 ||
+          Math.abs(p.x) > half * 1.7 ||
+          Math.abs(p.y) > half * 1.7
+        );
+
+        if (outFwd || outRev) {
+          // FWD: respawn far ahead (tiny). REV: respawn near camera, fly away
+          const n = reverse
+            ? spawnStar(NEAR_Z + 8 + Math.random() * 80)
+            : spawnStar(MAX_DEPTH * (0.94 + Math.random() * 0.06));
+          s.x = n.x; s.y = n.y; s.z = n.z;
+          s.px = n.x; s.py = n.y; s.pz = n.z;
+          s.size = n.size; s.r = n.r; s.g = n.g; s.b = n.b; s.bright = n.bright; s.layer = n.layer;
+          s.hist = null;
+          continue;
+        }
+
+        if (!reverse && p.z < MAX_DEPTH * 0.55) {
+          const scr = projectCam(p.x, p.y, p.z, camRoll);
+          if (
+            scr.x < -margin || scr.x > w + margin ||
+            scr.y < -margin || scr.y > h + margin
+          ) {
+            const n = spawnStar(MAX_DEPTH * (0.94 + Math.random() * 0.06));
+            s.x = n.x; s.y = n.y; s.z = n.z;
+            s.px = n.x; s.py = n.y; s.pz = n.z;
+            s.size = n.size; s.r = n.r; s.g = n.g; s.b = n.b; s.bright = n.bright; s.layer = n.layer;
+            s.hist = null;
+            continue;
+          }
+        }
+
+        s.x = p.x; s.y = p.y; s.z = p.z;
+      }
+      }
+
+      function frame(now) {
+        if (!frame.prev) frame.prev = now;
+        const dt = Math.min(0.033, (now - frame.prev) / 1000);
+        frame.prev = now;
+        if (w < 2 || h < 2 || !canvas.width) resize();
+
+        updateFlight(dt);
+        moveStars(dt);
+
+        ctx.fillStyle = "#000005";
+        ctx.fillRect(0, 0, w, h);
+
+        const look = starLook;
+        // Soft center atmosphere
+        const wantR = Math.min(w, h) * 0.6;
+        if (!glowGrad || glowCx !== cx || glowCy !== cy || glowR !== wantR) {
+          glowCx = cx; glowCy = cy; glowR = wantR;
+          glowGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, wantR);
+          glowGrad.addColorStop(0, look.atmos0);
+          glowGrad.addColorStop(0.42, look.atmos1);
+          glowGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        }
+        ctx.fillStyle = glowGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        const spdT = Math.max(0, Math.min(1, driveSpeed() / SPEED_MAX));
+        // Smooth trail length only — stars keep brightness when decelerating
+        const warpTarget = Math.pow(Math.max(0, spdT), 0.92);
+        warpSmooth = expApproach(warpSmooth, warpTarget, thrusting ? 5.5 : 2.4, dt);
+        const warp = warpSmooth;
+        const turnAmt = Math.min(1, Math.hypot(yawRate, pitchRate) / (TURN_RATE * 1.4));
+        vanishSX = expApproach(vanishSX, 0, 3, dt);
+        vanishSY = expApproach(vanishSY, 0, 3, dt);
+        if (!streakSprite) buildSprites();
+
+        ctx.globalCompositeOperation = "lighter";
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        for (let i = 0; i < stars.length; i++) {
+          const s = stars[i];
+          if (s.z < NEAR_Z) continue;
+
+          const head = projectCam(s.x, s.y, s.z, camRoll);
+          const depth = 1 - Math.min(1, s.z / MAX_DEPTH);
+          const prox = 0.7 + Math.pow(depth, 0.55) * 0.3;
+          const streakFade = Math.min(1, warp * 1.35);
+
+          const doTrail = warp > 0.08 && streakFade > 0.05 && depth > look.trailDepthGate;
+          if (doTrail) {
+            const dz = (5 + warp * look.trailDz) * (0.25 + Math.pow(Math.max(0.15, depth), 1.2) * 1.6);
+            const backZ = reverse
+              ? Math.max(NEAR_Z, s.z - dz)
+              : Math.min(MAX_DEPTH, s.z + dz);
+            let tail = projectCam(s.x, s.y, backZ, camRoll);
+
+            if (turnAmt > 0.06 && s.pz != null) {
+              const prev = projectCam(s.px, s.py, s.pz, camRoll);
+              const k = Math.min(0.4, turnAmt * 0.45);
+              tail = {
+                x: tail.x * (1 - k) + prev.x * k,
+                y: tail.y * (1 - k) + prev.y * k,
+              };
+            }
+
+            let dx = head.x - tail.x;
+            let dy = head.y - tail.y;
+            let len = Math.hypot(dx, dy);
+            const maxLen = 6 + warp * look.trailMax + prox * 28;
+            if (len > maxLen && len > 0.001) {
+              const sc = maxLen / len;
+              tail = { x: head.x - dx * sc, y: head.y - dy * sc };
+              len = maxLen;
+            }
+
+            if (len > 1.2) {
+              const thick = Math.max(0.45, look.trailThick * (0.75 + warp * 0.7 + prox * 0.45));
+              ctx.beginPath();
+              ctx.moveTo(tail.x, tail.y);
+              ctx.lineTo(head.x, head.y);
+              ctx.strokeStyle = `rgba(255,255,255,${look.trailAlpha * streakFade * prox})`;
+              ctx.lineWidth = thick * 0.65;
+              ctx.stroke();
+            }
+          }
+        }
+
+        // Star cores — grow from speck at far to look.coreMax near camera
+        ctx.globalCompositeOperation = look.coreComp;
+        ctx.globalAlpha = 1;
+        for (let i = 0; i < stars.length; i++) {
+          const s = stars[i];
+          if (s.z < NEAR_Z) continue;
+          const head = projectCam(s.x, s.y, s.z, camRoll);
+          const depth = 1 - Math.min(1, s.z / MAX_DEPTH);
+          const r = starRadius(s, look);
+
+          if (look.haloOuter > 0) {
+            ctx.beginPath();
+            ctx.fillStyle = `rgba(220,230,255,${look.haloOuter + depth * 0.2})`;
+            ctx.arc(head.x, head.y, r * 2.4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          if (look.haloMid > 0) {
+            ctx.beginPath();
+            ctx.fillStyle = `rgba(255,255,255,${look.haloMid + depth * 0.25})`;
+            ctx.arc(head.x, head.y, r * 1.25, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // Far stars: soft alpha so they "fade in" as tiny points
+          const farFade = 0.45 + depth * 0.55;
+          ctx.beginPath();
+          ctx.fillStyle = look.haloMid > 0
+            ? "#ffffff"
+            : `rgba(255,255,255,${farFade})`;
+          ctx.arc(head.x, head.y, Math.max(0.35, r * (look.haloMid > 0 ? 0.72 : 0.92)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalCompositeOperation = "source-over";
+
+        raf = requestAnimationFrame(frame);
+      }
+
+      function syncStickFromKeys() {
+        if (stickMode && joyActive) return;
+        let x = 0, y = 0;
+        if (keys.has("left")) x -= 1;
+        if (keys.has("right")) x += 1;
+        if (keys.has("up")) y -= 1;
+        if (keys.has("down")) y += 1;
+        // Normalize diagonal so magnitude stays ≤ 1
+        const mag = Math.hypot(x, y);
+        if (mag > 1) { x /= mag; y /= mag; }
+        stickX = x;
+        stickY = y;
+        document.querySelectorAll(".pad button").forEach((btn) => {
+          btn.classList.toggle("held", keys.has(btn.dataset.dir));
+        });
+      }
+
+      function applyJoyFromEvent(e, joyEl) {
+        const rect = joyEl.getBoundingClientRect();
+        const cx0 = rect.left + rect.width / 2;
+        const cy0 = rect.top + rect.height / 2;
+        const maxR = Math.min(rect.width, rect.height) * 0.38;
+        let dx = e.clientX - cx0;
+        let dy = e.clientY - cy0;
+        const dist = Math.hypot(dx, dy);
+        if (dist > maxR && dist > 0.001) {
+          dx = (dx / dist) * maxR;
+          dy = (dy / dist) * maxR;
+        }
+        // Analog: farther pull → stronger command (−1…1)
+        stickX = dx / maxR;
+        stickY = dy / maxR;
+        const knob = document.getElementById("joyKnob");
+        if (knob) knob.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
+      }
+
+      function resetJoyVisual() {
+        stickX = 0;
+        stickY = 0;
+        const joy = document.getElementById("joy");
+        const knob = document.getElementById("joyKnob");
+        if (joy) joy.classList.remove("active");
+        if (knob) knob.style.transform = "translate(0px, 0px)";
+      }
+
+      const keyMap = {
+        ArrowLeft: "left", a: "left", A: "left",
+        ArrowRight: "right", d: "right", D: "right",
+        ArrowUp: "up", w: "up", W: "up",
+        ArrowDown: "down", s: "down", S: "down",
+      };
+
+      window.addEventListener("keydown", (e) => {
+        if (e.code === "KeyJ" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+          e.preventDefault();
+          setStickMode(!stickMode);
+          return;
+        }
+        if (e.code === "KeyB" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          // Letter B = immersive panel (star look B is key 2)
+          if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+          e.preventDefault();
+          setImmersive(!immersive);
+          return;
+        }
+        if (e.code === "Digit1" || e.key === "1") { setStarLook("pin"); return; }
+        if (e.code === "Digit2" || e.key === "2") { setStarLook("streak"); return; }
+        if (e.code === "Digit3" || e.key === "3") { setStarLook("glow"); return; }
+        if (e.code === "Space" || e.key === " ") {
+          e.preventDefault();
+          if (braking || thrustGate) return;
+          if (gear === "N") requestGear("D");
+          if (!canThrust()) return;
+          armAudioFromThrust();
+          thrusting = true;
+          return;
+        }
+        if (e.code === "KeyR" || e.key === "r" || e.key === "R") {
+          if (e.metaKey || e.ctrlKey || e.altKey) return;
+          if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+          e.preventDefault();
+          requestGear(gear === "R" ? "N" : "R");
+          return;
+        }
+        if ((e.code === "KeyN" || e.key === "n" || e.key === "N") && e.shiftKey) {
+          e.preventDefault();
+          requestGear("N");
+          return;
+        }
+        const dir = keyMap[e.key];
+        if (!dir) return;
+        e.preventDefault();
+        keys.add(dir);
+        syncStickFromKeys();
+      });
+      window.addEventListener("keyup", (e) => {
+        if (e.code === "Space" || e.key === " ") {
+          e.preventDefault();
+          thrusting = false;
+          thrustGate = false;
+          return;
+        }
+        const dir = keyMap[e.key];
+        if (!dir) return;
+        keys.delete(dir);
+        syncStickFromKeys();
+      });
+
+      // Power button — SPACE logo + POWER (replaces plain THRUST label)
+      const thrustBtn = document.createElement("button");
+      thrustBtn.type = "button";
+      thrustBtn.setAttribute("aria-label", "Power (Space)");
+      thrustBtn.innerHTML =
+        '<svg viewBox="200 188 205 42" aria-hidden="true" style="width:52px;height:14px;display:block;flex-shrink:0">' +
+        '<path fill="currentColor" d="M210.6,190.8h-23.9c-4.9,0-8.5.5-11,1.4-3.8,1.5-5.7,4.2-5.7,8.2v2.8c0,6,5.8,9,17.4,9h9.1c6.4,0,9.6,1.3,9.6,3.8v3.3c0,2.4-3.2,3.6-9.7,3.6h-23.9c-1.6,0-2.4.8-2.4,2.5v.8c0,1.6.8,2.5,2.4,2.5h23.9c4.6,0,8.2-.4,10.8-1.2,3.9-1.2,5.8-3.9,5.8-8.2v-3.4c0-3.5-2-6-6-7.7-2.9-1.1-6.3-1.7-10.5-1.7h-9.3c-2.9,0-4.9,0-6.1-.3-2.9-.5-4.3-1.6-4.3-3.2v-2.6c0-2.6,3.2-4,9.7-4h23.9c1.6,0,2.5-.8,2.5-2.5v-.8c0-1.6-.8-2.4-2.5-2.4Z"/>' +
+        '<path fill="currentColor" d="M261.9,192.4c-2.9-1.1-6.2-1.6-9.9-1.6h-28.8c-1.6,0-2.4.8-2.4,2.4v33c0,1.6.8,2.5,2.4,2.5h2c1.6,0,2.5-.8,2.5-2.5v-11.1h24c4.3,0,7.8-.6,10.6-1.9,3.8-1.7,5.7-4.4,5.7-8.2v-5.9c0-3.1-2-5.4-6.1-6.9ZM261.1,204.9c0,.5-.2.9-.3,1.4-.4,1.1-1.3,2-2.4,2.5-1.4.5-3.4.8-6.3.8h-24.4v-13.1h22.2c2.8,0,5.8-.2,8.6.7,1.1.3,2,1.2,2.3,2.3s.4,1.8.4,2.7,0,1.9,0,2.8Z"/>' +
+        '<path fill="currentColor" d="M373.2,190.8h-24.7c-2.5,0-4.4.1-5.8.4-2.5.4-4.8,1.4-6.6,2.8-2.2,1.7-3.3,3.7-3.3,6.1v18.9c0,3.3,1.7,5.9,5.2,7.7,1.7.9,3.6,1.5,5.6,1.8,1.2.2,3.2.2,6,.2h23.5c1.6,0,2.4-.8,2.4-2.5v-.8c0-1.6-.8-2.5-2.4-2.5h-23.5c-2.8,0-4.8-.2-6-.5-2.6-.7-4-2-4-3.8v-18.8c0-2.4,3-3.6,9-3.6h24.6c1.6,0,2.5-.8,2.5-2.5v-.8c0-1.6-.8-2.4-2.5-2.4Z"/>' +
+        '<path fill="currentColor" d="M325.5,224.5c-.3-.8-1-1.6-1.5-2.3-1.4-1.9-2.7-3.7-4.1-5.6-1.8-2.4-3.6-4.9-5.3-7.3-1.8-2.5-3.6-5-5.5-7.5-1.8-2.7-3.8-5.2-5.7-7.9-.3-.4-.6-.8-.9-1.3-.9-1.4-2.3-1.9-4-1.9h-.4c-1.7,0-3,.5-4,1.9-.3.4-.6.8-.9,1.3-1.9,2.6-3.9,5.2-5.7,7.9-1.8,2.5-3.6,5-5.5,7.5-1.8,2.4-3.6,4.9-5.3,7.3-1.2,1.6-2.4,3.2-3.6,4.9-.5.7-1,1.4-1.5,2.1-1,1.3-1,3,.3,4.2.7.6,1.6.9,2.6.9s1.9-.5,2.7-1.6l5.8-8.1h29.4l6.1,8.4c.8,1.1,1.7,1.6,2.7,1.6s1.9-.3,2.6-.9c.6-.6,1.1-1.5,1.1-2.3,0-.3,0-.6-.2-.9ZM287.5,212.7l10.7-14.9,10.7,14.9h-21.5Z"/>' +
+        '<path fill="currentColor" d="M389.4,212.8v6.2c0,2.7,3,4,8.9,4h24.4c1.6,0,2.4.8,2.4,2.4v.8c0,1.6-.8,2.5-2.4,2.5h-24.7c-.8,0-1.7,0-2.9-.2-8.4-.9-12.6-4-12.6-9.3v-18.8c0-3.5,2.1-6.2,6.2-7.9,2.8-1.2,6-1.7,9.9-1.7h24.2c1.6,0,2.4.8,2.4,2.4v.8c0,1.6-.8,2.5-2.4,2.5h-26.4c-4.7.4-7,1.7-7,4v6.6h33.4c.6,0,1.1.1,1.5.3.5.4.7,1,.7,1.9v.8c0,1.6-.8,2.5-2.4,2.5h-33.4Z"/>' +
+        '</svg><span style="letter-spacing:0.14em;font-size:12px">POWER</span>';
+      Object.assign(thrustBtn.style, {
+        position: "absolute",
+        left: "max(10px, env(safe-area-inset-left))",
+        bottom: "max(14px, env(safe-area-inset-bottom))",
+        zIndex: "9",
+        pointerEvents: "auto",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "4px",
+        border: "1px solid rgba(180,200,230,0.2)",
+        background: "rgba(10, 12, 16, 0.78)",
+        color: "#e8eef8",
+        borderRadius: "11px",
+        fontFamily: "inherit",
+        padding: "10px 14px",
+        backdropFilter: "blur(8px)",
+        minWidth: "72px",
+      });
+      function setThrustVisual() {
+        thrustBtn.style.background = thrusting
+          ? "rgba(158, 193, 255, 0.28)"
+          : "rgba(10, 12, 16, 0.78)";
+        thrustBtn.style.borderColor = thrusting
+          ? "rgba(158, 193, 255, 0.55)"
+          : "rgba(180,200,230,0.2)";
+        thrustBtn.style.color = thrusting ? "#f2f7ff" : "#e8eef8";
+      }
+      thrustBtn.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        if (braking || thrustGate) return;
+        if (gear === "N") requestGear("D");
+        if (!canThrust()) return;
+        armAudioFromThrust();
+        thrusting = true;
+        thrustPointer = true;
+        setThrustVisual();
+      });
+      window.addEventListener("pointerup", () => {
+        if (thrustPointer) {
+          thrusting = false;
+          thrustPointer = false;
+          thrustGate = false;
+          setThrustVisual();
+        }
+      });
+      window.addEventListener("pointercancel", () => {
+        if (thrustPointer) {
+          thrusting = false;
+          thrustPointer = false;
+          thrustGate = false;
+          setThrustVisual();
+        }
+      });
+      stage.appendChild(thrustBtn);
+
+      // Gear lever — D / N / R
+      const gearBox = document.createElement("div");
+      gearBox.className = "gearbox gear-D";
+      gearBox.id = "gearBox";
+      gearBox.innerHTML =
+        '<div class="gear-label">GEAR</div>' +
+        '<div class="gear-track" id="gearTrack">' +
+        '<button type="button" class="gear-slot on-d" data-gear="D" aria-label="Drive">D</button>' +
+        '<button type="button" class="gear-slot" data-gear="N" aria-label="Neutral">N</button>' +
+        '<button type="button" class="gear-slot" data-gear="R" aria-label="Reverse">R</button>' +
+        '<div class="gear-knob" id="gearKnob" aria-hidden="true"></div>' +
+        "</div>";
+      stage.appendChild(gearBox);
+
+      setGearVisual = function () {
+        const g = activeGear();
+        gearBox.classList.remove("gear-D", "gear-N", "gear-R", "braking");
+        gearBox.classList.add("gear-" + g);
+        if (braking) gearBox.classList.add("braking");
+        gearBox.querySelectorAll(".gear-slot").forEach((slot) => {
+          slot.classList.toggle("on-d", g === "D" && slot.dataset.gear === "D");
+          slot.classList.toggle("on-n", g === "N" && slot.dataset.gear === "N");
+          slot.classList.toggle("on-r", g === "R" && slot.dataset.gear === "R");
+        });
+      };
+
+      function gearFromClientY(clientY) {
+        const track = document.getElementById("gearTrack");
+        if (!track) return "N";
+        const rect = track.getBoundingClientRect();
+        const t = (clientY - rect.top) / Math.max(1, rect.height);
+        if (t < 0.33) return "D";
+        if (t < 0.66) return "N";
+        return "R";
+      }
+
+      gearBox.addEventListener("pointerdown", (e) => {
+        const slot = e.target.closest("[data-gear]");
+        e.preventDefault();
+        e.stopPropagation();
+        gearBox.setPointerCapture(e.pointerId);
+        if (slot) requestGear(slot.dataset.gear);
+        else requestGear(gearFromClientY(e.clientY));
+      });
+      gearBox.addEventListener("pointermove", (e) => {
+        if (!gearBox.hasPointerCapture(e.pointerId)) return;
+        e.preventDefault();
+        requestGear(gearFromClientY(e.clientY));
+      });
+      setGearVisual();
+
+      const starLooksEl = document.getElementById("starLooks");
+      if (starLooksEl) {
+        starLooksEl.addEventListener("pointerdown", (e) => {
+          const btn = e.target.closest("button[data-look]");
+          if (!btn) return;
+          e.preventDefault();
+          e.stopPropagation();
+          setStarLook(btn.dataset.look);
+        });
+      }
+
+      const viewToggle = document.getElementById("viewToggle");
+      if (viewToggle) {
+        viewToggle.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setImmersive(!immersive);
+        });
+      }
+
+      const ctrlToggle = document.getElementById("ctrlToggle");
+      if (ctrlToggle) {
+        ctrlToggle.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setStickMode(!stickMode);
+        });
+      }
+
+      const joyEl = document.getElementById("joy");
+      if (joyEl) {
+        let joyPtr = null;
+        joyEl.addEventListener("pointerdown", (e) => {
+          if (!stickMode) return;
+          e.preventDefault();
+          e.stopPropagation();
+          joyPtr = e.pointerId;
+          joyActive = true;
+          joyEl.classList.add("active");
+          joyEl.setPointerCapture(e.pointerId);
+          applyJoyFromEvent(e, joyEl);
+        });
+        joyEl.addEventListener("pointermove", (e) => {
+          if (!joyActive || e.pointerId !== joyPtr) return;
+          e.preventDefault();
+          applyJoyFromEvent(e, joyEl);
+        });
+        const endJoy = (e) => {
+          if (e && joyPtr != null && e.pointerId !== joyPtr) return;
+          joyPtr = null;
+          joyActive = false;
+          resetJoyVisual();
+          if (keys.size) syncStickFromKeys();
+        };
+        joyEl.addEventListener("pointerup", endJoy);
+        joyEl.addEventListener("pointercancel", endJoy);
+      }
+
+      document.querySelectorAll(".pad button").forEach((btn) => {
+        const dir = btn.dataset.dir;
+        const down = (e) => {
+          if (stickMode) return;
+          e.preventDefault();
+          keys.add(dir);
+          syncStickFromKeys();
+        };
+        const up = (e) => {
+          if (stickMode) return;
+          e.preventDefault();
+          keys.delete(dir);
+          syncStickFromKeys();
+        };
+        btn.addEventListener("pointerdown", down);
+        btn.addEventListener("pointerup", up);
+        btn.addEventListener("pointerleave", up);
+        btn.addEventListener("pointercancel", up);
+      });
+
+      let dragging = false;
+      stage.addEventListener("pointerdown", (e) => {
+        if (stickMode) return; // analog stick owns steering on touch
+        if (e.target.closest(".pad, button, .audio-btn, .joy, .ctrl-toggle, .view-toggle, .star-looks, .gearbox")) return;
+        dragging = true;
+        stage.setPointerCapture(e.pointerId);
+      });
+      stage.addEventListener("pointermove", (e) => {
+        if (!dragging || stickMode) return;
+        stickX = Math.max(-1, Math.min(1, (e.clientX / w) * 2 - 1));
+        stickY = Math.max(-1, Math.min(1, (e.clientY / h) * 2 - 1));
+      });
+      const endDrag = () => {
+        if (!dragging) return;
+        dragging = false;
+        if (keys.size) syncStickFromKeys();
+        else { stickX = 0; stickY = 0; }
+      };
+      stage.addEventListener("pointerup", endDrag);
+      stage.addEventListener("pointercancel", endDrag);
+
+      // Speed is driven by Space / thrust button
+      window.addEventListener("resize", resize);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) cancelAnimationFrame(raf);
+        else { frame.prev = 0; raf = requestAnimationFrame(frame); }
+      });
+
+      try {
+        buildCompass();
+        resize();
+        if (w < 2 || h < 2) {
+          w = Math.max(320, window.innerWidth || 320);
+          h = Math.max(480, window.innerHeight || 480);
+          cx = w / 2; cy = h * 0.42;
+        }
+        init();
+        raf = requestAnimationFrame(frame);
+      } catch (err) {
+        console.error(err);
+        const box = document.createElement("div");
+        box.textContent = "JS: " + (err && err.message ? err.message : String(err));
+        Object.assign(box.style, {
+          position: "fixed", left: "8px", top: "8px", zIndex: "99",
+          color: "#fff", background: "rgba(120,0,0,0.85)", padding: "8px 10px",
+          fontSize: "12px", maxWidth: "90%"
+        });
+        document.body.appendChild(box);
+      }
+    })();
+  </script>
+</body>
+</html>
