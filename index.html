@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Bali Loft</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Manrope:wght@500;600&display=swap" rel="stylesheet" />
+    <style>
+      :root { --bg:#081018; --snow:#eef3f8; --soft:#eef3f8b3; --amber:#e0a15a; --danger:#c45748; --glass:#08101873; --line:#eef3f829; color:var(--snow); background:var(--bg); font-family:Manrope,system-ui,sans-serif; }
+      * { box-sizing:border-box; margin:0; padding:0; }
+      html,body,#app { background:var(--bg); width:100%; height:100%; min-height:100svh; position:fixed; inset:0; overflow:hidden; }
+      #scene { touch-action:none; cursor:crosshair; width:100%; height:100%; display:block; position:absolute; inset:0; }
+      body.looking #scene { cursor:none; }
+      body.looking .crosshair { opacity:1; }
+      #boot { z-index:5; background:radial-gradient(circle at 60% 40%,#1a2a38,#081018 70%); place-items:center; font-family:Syne,sans-serif; font-size:1.15rem; transition:opacity .5s,visibility .5s; display:grid; position:absolute; inset:0; }
+      #boot.hide { opacity:0; visibility:hidden; pointer-events:none; }
+      .lock-hint { z-index:4; appearance:none; border:1px solid var(--line); backdrop-filter:blur(14px); color:var(--snow); font:inherit; cursor:pointer; text-align:center; background:#081018b8; border-radius:18px; flex-direction:column; align-items:center; gap:.35rem; max-width:min(92vw,28rem); padding:1rem 1.35rem; font-family:Syne,Manrope,sans-serif; font-size:clamp(1.05rem,2.6vw,1.35rem); font-weight:700; display:flex; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
+      .lock-hint span { color:var(--soft); font-family:Manrope,sans-serif; font-size:.82rem; font-weight:500; }
+      .lock-hint.hide { opacity:0; visibility:hidden; pointer-events:none; }
+      .crosshair { z-index:3; pointer-events:none; opacity:.55; border:1.5px solid #eef3f88c; border-radius:50%; width:10px; height:10px; margin:-5px 0 0 -5px; position:absolute; top:50%; left:50%; }
+      .pinch-ring { pointer-events:none; z-index:5; opacity:0; border:2px solid #b4f0ffe6; border-radius:50%; width:5.2rem; height:5.2rem; margin:-2.6rem 0 0 -2.6rem; position:absolute; }
+      .pinch-ring.on { opacity:1; }
+      .pinch-hint { left:50%; top:5.2rem; z-index:5; pointer-events:none; opacity:0; background:#0810188c; border:1px solid #b4f0ff59; border-radius:999px; padding:.45rem .85rem; position:absolute; transform:translate(-50%); }
+      .pinch-hint.on { opacity:1; }
+      .teleport-flash { z-index:6; pointer-events:none; opacity:0; position:absolute; inset:0; background:radial-gradient(circle,#c8faff8c,#0000 70%); }
+      .teleport-flash.on { animation:.28s ease-out forwards flash; }
+      @keyframes flash { from { opacity:.85 } to { opacity:0 } }
+      .mobile-ui { z-index:4; pointer-events:none; position:absolute; inset:0; }
+      .mobile-ui[hidden] { display:none !important; }
+      .joy-zone { pointer-events:auto; touch-action:none; width:48%; height:42%; position:absolute; bottom:0; left:0; }
+      .joy-base { left:max(1.2rem, env(safe-area-inset-left)); bottom:max(5.5rem, calc(env(safe-area-inset-bottom) + 4.8rem)); border:1px solid var(--line); background:#08101859; border-radius:50%; width:7.2rem; height:7.2rem; position:absolute; }
+      .joy-knob { background:#eef3f8c7; border-radius:50%; width:2.8rem; height:2.8rem; margin:-1.4rem 0 0 -1.4rem; position:absolute; top:50%; left:50%; }
+      .look-zone { top:12%; right:0; bottom:max(5.8rem, calc(env(safe-area-inset-bottom) + 5.2rem)); pointer-events:auto; touch-action:none; width:55%; position:absolute; }
+      .action-btns { right:max(1rem, env(safe-area-inset-right)); bottom:max(5.5rem, calc(env(safe-area-inset-bottom) + 4.8rem)); pointer-events:auto; z-index:5; flex-direction:column; gap:.75rem; display:flex; position:absolute; }
+      .action-btn { appearance:none; border:1px solid var(--line); width:4.4rem; height:4.4rem; color:var(--snow); background:#0810188c; border-radius:50%; font:inherit; font-size:.72rem; font-weight:700; }
+      .action-btn.jump { width:5rem; height:5rem; }
+      .hud-top,.hud-bottom { z-index:2; pointer-events:none; justify-content:space-between; gap:1rem; padding:1.2rem 1.6rem; display:flex; position:absolute; left:0; right:0; }
+      .hud-top { top:0; background:linear-gradient(#081018b8,#0000 90%); align-items:flex-start; }
+      .hud-bottom { bottom:0; background:linear-gradient(#0000 12%,#081018c7); align-items:flex-end; }
+      .brand { font-family:Syne,sans-serif; font-size:clamp(2rem,5.5vw,3.4rem); font-weight:800; line-height:.92; }
+      .tagline { color:var(--soft); margin-top:.35rem; font-size:.92rem; }
+      .status { border:1px solid var(--line); background:var(--glass); color:var(--soft); border-radius:999px; align-items:center; gap:.5rem; padding:.45rem .8rem; font-size:.82rem; display:inline-flex; }
+      .dot { background:#79c48f; border-radius:50%; width:.48rem; height:.48rem; }
+      .hint { max-width:22rem; color:var(--soft); font-size:.82rem; line-height:1.4; }
+      .controls { pointer-events:auto; display:flex; gap:.5rem; flex-wrap:wrap; }
+      .ctrl { appearance:none; border:1px solid var(--line); background:var(--glass); color:var(--snow); font:inherit; cursor:pointer; border-radius:999px; padding:.72rem 1.05rem; font-size:.88rem; font-weight:600; }
+      .ctrl.on { background:color-mix(in srgb, var(--amber) 86%, white 8%); color:#1a1208; border-color:transparent; }
+      .ctrl.leave { background:color-mix(in srgb, var(--danger) 82%, black 8%); border-color:transparent; }
+      @media (width <= 720px) { .hud-top,.hud-bottom { flex-direction:column; } .hint { display:none; } .brand { font-size:1.7rem; } }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+      <div id="pinch-ring" class="pinch-ring" aria-hidden="true"></div>
+      <div id="pinch-hint" class="pinch-hint" aria-hidden="true"></div>
+      <div id="teleport-flash" class="teleport-flash" aria-hidden="true"></div>
+      <div id="boot">Загрузка острова…</div>
+      <button type="button" id="lock-hint" class="lock-hint">Кликните, чтобы выйти в море<span>вы на палубе · остров впереди</span></button>
+      <div class="crosshair" aria-hidden="true"></div>
+      <div id="mobile-ui" class="mobile-ui" hidden>
+        <div class="joy-zone" id="joy-zone" aria-label="Ходьба">
+          <div class="joy-base" id="joy-base"><div class="joy-knob" id="joy-knob"></div></div>
+        </div>
+        <div class="look-zone" id="look-zone" aria-label="Взгляд"></div>
+        <div class="action-btns">
+          <button type="button" id="btn-sprint" class="action-btn">бег</button>
+          <button type="button" id="btn-jump" class="action-btn jump">прыжок</button>
+        </div>
+      </div>
+      <header class="hud-top">
+        <div>
+          <p class="brand">Bali Loft</p>
+          <p class="tagline">идём к острову</p>
+        </div>
+        <p class="status"><span class="dot"></span> в эфире · 2 стены экранов</p>
+      </header>
+      <footer class="hud-bottom">
+        <p class="hint"><b>WASD</b> по палубе · мышь · <b>Пробел</b> — причалить быстрее</p>
+        <div class="controls">
+          <button type="button" id="btn-mute" class="ctrl">Микрофон</button>
+          <button type="button" id="btn-cam" class="ctrl on">Камера</button>
+          <button type="button" id="btn-leave" class="ctrl leave">Выйти</button>
+        </div>
+      </footer>
+    </div>
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>
