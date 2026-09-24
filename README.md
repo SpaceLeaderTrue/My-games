@@ -3,9 +3,9 @@
 
 ## Bali Loft
 
-Walkable loft on an island. The visit starts on a boat, then the pier, the villa, the west roof stair, and the bunker ramp to the east. Video walls are only inside the loft and at the back of the bunker.
+The original walkable loft. The visit now starts on a boat that sails up to the island, then the same villa, roof, and bunker.
 
-Open with any static server from [`bali-loft/`](bali-loft/) (the page loads Three.js as a module).
+Open [`bali-loft/index.html`](bali-loft/index.html).
 
 ## Север — сектор Лиры
 
