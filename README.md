@@ -7,8 +7,8 @@ Walkable loft scene (WASD, mouse, or a phone joystick). Static copy of [bali-lof
 
 Open [`bali-loft/index.html`](bali-loft/index.html).
 
-## Север — сектор Лиры
+## SPACE — Cockpit
 
-Cockpit flight through a small star system. Planets, a ringed giant, a comet, and six constellations move under gravity, so orbits and slingshots are the way to travel. Mouse looks, W/S is throttle, Shift or Space boosts, R kills speed, F toggles flight assist, G holds prograde. Stare at a constellation to chart it.
+The original cockpit, plus a 3D chart you can fly through: stations and planets joined by routes. Same controls as before — WASD or arrows, Space or POWER for thrust, D / N / R on the gear lever.
 
 Open [`space-cockpit/index.html`](space-cockpit/index.html).
