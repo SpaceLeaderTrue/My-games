@@ -3,9 +3,9 @@
 
 ## Bali Loft
 
-Walkable loft scene (WASD, mouse, or a phone joystick). Static copy of [bali-loft-live.surge.sh](https://bali-loft-live.surge.sh).
+Walkable loft on an island. The visit starts on a boat, then the pier, the villa, the west roof stair, and the bunker ramp to the east. Video walls are only inside the loft and at the back of the bunker.
 
-Open [`bali-loft/index.html`](bali-loft/index.html).
+Open with any static server from [`bali-loft/`](bali-loft/) (the page loads Three.js as a module).
 
 ## Север — сектор Лиры
 
