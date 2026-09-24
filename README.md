@@ -7,8 +7,8 @@ Walkable loft scene (WASD, mouse, or a phone joystick). Static copy of [bali-lof
 
 Open [`bali-loft/index.html`](bali-loft/index.html).
 
-## SPACE — Cockpit
+## Север — сектор Лиры
 
-First-person starfield cockpit. Steer with WASD or the arrows, hold Space (or POWER) for thrust, and shift D / N / R on the gear lever. J toggles the joystick, B hides the panel, and 1 / 2 / 3 change the star look. Static copy of [glossy-birch-456.harvis.page](https://glossy-birch-456.harvis.page).
+Cockpit flight through a small star system. Planets, a ringed giant, a comet, and six constellations move under gravity, so orbits and slingshots are the way to travel. Mouse looks, W/S is throttle, Shift or Space boosts, R kills speed, F toggles flight assist, G holds prograde. Stare at a constellation to chart it.
 
 Open [`space-cockpit/index.html`](space-cockpit/index.html).
