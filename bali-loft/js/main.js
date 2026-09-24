@@ -385,7 +385,7 @@ function tick() {
     iz /= len;
     forward.set(-Math.sin(yaw), 0, -Math.cos(yaw));
     right.set(Math.cos(yaw), 0, -Math.sin(yaw));
-    const speed = (keys.ShiftLeft || keys.ShiftRight || sprintHeld ? 9.4 : 6.1) * (onShip && boat.phase === "sailing" ? 0.85 : 1);
+    const speed = (keys.ShiftLeft || keys.ShiftRight || sprintHeld ? 9.4 : 6.1) * (boat.phase === "sailing" ? 0.85 : 1);
     const tx = (forward.x * -iz + right.x * ix) * speed;
     const tz = (forward.z * -iz + right.z * ix) * speed;
     const k = 1 - Math.exp(-14 * dt);
