@@ -1,0 +1,9 @@
+{
+  "name": "Светосад",
+  "short_name": "Светосад",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "./",
+  "background_color": "#07110e",
+  "theme_color": "#07110e"
+}
