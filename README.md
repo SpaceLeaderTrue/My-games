@@ -17,4 +17,4 @@ Open [`space-cockpit/index.html`](space-cockpit/index.html).
 
 A small glass garden. Drop a light, and two of the same kind grow into the next: spark, seed, sprout, bud, flower, firefly, lantern, moon, sun. Chains ring a little higher each time. The garden remembers your record, your herbarium, and how many mornings you came back.
 
-Play it at [svetosad-garden.surge.sh](https://svetosad-garden.surge.sh/). The same page is in [`svetosad/index.html`](svetosad/index.html). Aim with a finger or the arrow keys, release or press Space to drop. After the jar fills, one more garden is a single tap.
+Play it at [svetosad-play.surge.sh](https://svetosad-play.surge.sh/). The same page is in [`svetosad/index.html`](svetosad/index.html). Aim with a finger or the arrow keys, release or press Space to drop. After the jar fills, one more garden is a single tap.
