@@ -154,6 +154,7 @@
       font-size: 13px; padding: 3px 0; color: var(--muted);
     }
     .rank li.me { color: var(--lamp); }
+    .rank .note { margin: 8px 0 0; font-size: 11px; color: var(--muted); }
     .toast {
       left: 0; right: 0; top: 92px; width: max-content; margin: 0 auto;
       background: rgba(255, 209, 92, 0.95); color: #2a1408;
@@ -207,6 +208,7 @@
         <input id="rankName" maxlength="16" placeholder="твоё имя" autocomplete="nickname" enterkeyhint="done">
         <button type="submit" id="rankSave">В рейтинг</button>
       </form>
+      <p class="note">один список на всех</p>
       <ol id="rankList"></ol>
     </div>
     <button class="primary" type="button" id="again">Ещё раз</button>
@@ -769,7 +771,7 @@
     const nameInput = document.getElementById("rankName");
     nameInput.value = save.playerName || "";
     document.getElementById("rankSave").disabled = false;
-    renderBoard("");
+    refreshBoard();
     sheet.hidden = false;
     if (!won) {
       tone(659, 0.22, 0.05, "sine");
@@ -811,9 +813,71 @@
     tone(392, 0.12, 0.04, "triangle");
   }
 
+  const BOARD = "https://keyvalue.immanuel.co/api/KeyVal";
+  const BOARD_APP = "b77t15sw";
+  const BOARD_SLOT = "svotosad";
   function fmt(n) { return Math.floor(n).toLocaleString("ru-RU"); }
   function cleanName(raw) {
-    return String(raw || "").replace(/\s+/g, " ").trim().slice(0, 16);
+    return String(raw || "").replace(/[,;:]/g, "").replace(/\s+/g, " ").trim().slice(0, 16);
+  }
+  function packName(name) {
+    return btoa(unescape(encodeURIComponent(name))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+  function unpackName(code) {
+    try {
+      const pad = code + "===".slice((code.length + 3) % 4);
+      return cleanName(decodeURIComponent(escape(atob(pad.replace(/-/g, "+").replace(/_/g, "/")))));
+    } catch (e) {
+      return "";
+    }
+  }
+  function packBoard(rows) {
+    const packed = rows.slice(0, 20).map((row) => packName(row.name) + "," + Math.floor(row.score) + "," + (row.level | 0)).join(";");
+    return packed || "-";
+  }
+  function parseBoard(text) {
+    if (!text || text === "-") return [];
+    return String(text).split(";").map((part) => {
+      const bits = part.split(",");
+      if (bits.length < 3) return null;
+      const name = unpackName(bits[0]);
+      const score = Number(bits[1]);
+      const level = Number(bits[2]);
+      if (!name || !Number.isFinite(score) || score <= 0) return null;
+      return { name, score, level: level >= 0 && level < LEVELS.length ? level : 0 };
+    }).filter(Boolean);
+  }
+  function mergeBoards(lists) {
+    const map = new Map();
+    lists.flat().forEach((row) => {
+      if (!row || !row.name || !(row.score > 0)) return;
+      const key = row.name.toLowerCase();
+      const prev = map.get(key);
+      if (!prev || row.score > prev.score) map.set(key, { name: row.name, score: row.score, level: row.level | 0 });
+    });
+    return [...map.values()].sort((a, b) => b.score - a.score).slice(0, 20);
+  }
+  async function pullBoard() {
+    const res = await fetch(BOARD + "/GetValue/" + BOARD_APP + "/" + BOARD_SLOT);
+    if (!res.ok) throw new Error("board");
+    const text = await res.json();
+    return parseBoard(typeof text === "string" ? text : "");
+  }
+  async function pushBoard(rows) {
+    const packed = packBoard(rows);
+    const res = await fetch(BOARD + "/UpdateValue/" + BOARD_APP + "/" + BOARD_SLOT + "/" + encodeURIComponent(packed), {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: packed
+    });
+    if (!res.ok) throw new Error("board");
+  }
+  async function refreshBoard() {
+    try {
+      save.board = await pullBoard();
+      persist();
+    } catch (e) {}
+    renderBoard("");
   }
   function renderBoard(highlight) {
     const list = document.getElementById("rankList");
@@ -837,7 +901,7 @@
       list.appendChild(li);
     });
   }
-  function saveRank(raw) {
+  async function saveRank(raw) {
     const name = cleanName(raw);
     if (!name) {
       toast("нужно имя");
@@ -847,25 +911,33 @@
       toast("сначала набери свет");
       return;
     }
-    save.playerName = name;
-    const prev = save.board.find((row) => row.name.toLowerCase() === name.toLowerCase());
-    if (prev && prev.score >= S.score) {
-      toast("твой максимум уже " + fmt(prev.score));
-      renderBoard(prev.name);
-      return;
+    const button = document.getElementById("rankSave");
+    button.disabled = true;
+    try {
+      const remote = await pullBoard();
+      const mine = { name, score: S.score, level: save.level };
+      const higher = remote.find((row) => row.name.toLowerCase() === name.toLowerCase() && row.score >= S.score);
+      if (higher) {
+        save.board = remote;
+        save.playerName = name;
+        persist();
+        renderBoard(higher.name);
+        toast("твой максимум уже " + fmt(higher.score));
+        return;
+      }
+      const merged = mergeBoards([remote, [mine]]);
+      await pushBoard(merged);
+      const fresh = await pullBoard();
+      save.board = fresh.length ? fresh : merged;
+      save.playerName = name;
+      persist();
+      renderBoard(name);
+      toast("ты в общем рейтинге");
+    } catch (e) {
+      toast("рейтинг недоступен");
+    } finally {
+      button.disabled = false;
     }
-    if (prev) {
-      prev.score = S.score;
-      prev.level = save.level;
-      prev.name = name;
-    } else {
-      save.board.push({ name, score: S.score, level: save.level });
-    }
-    save.board.sort((a, b) => b.score - a.score);
-    save.board = save.board.slice(0, 20);
-    persist();
-    renderBoard(name);
-    toast("ты в рейтинге");
   }
   function levelBest() { return save.bests[save.level] || 0; }
   function winLevel() {
@@ -1537,7 +1609,7 @@
   requestAnimationFrame(frame);
 
   window.__svetosad = {
-    S, drop, resetRun, TIERS, radius,
+    S, drop, resetRun, endRun, saveRank, pullBoard, TIERS, radius,
     dropAt(x) { S.aimX = x; S.aimReady = true; clampAim(); drop(); }
   };
 })();
