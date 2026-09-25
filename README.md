@@ -1,7 +1,7 @@
 # My-games
 
 
-## Bali Loft
+## Space Island 3D
 
 The original walkable loft. The visit now starts on a boat that sails up to the island, then the same villa, roof, and bunker.
 
