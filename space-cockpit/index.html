@@ -795,7 +795,8 @@
       const SPEED_MIN = 0; // true stop (no crawl)
       const SPEED_MAX = 4.5;
       const SPEED_MAX_REV = SPEED_MAX * 0.5;
-      const HOVER_SPEED = 0; // parked / neutral — no forward drift
+      const HOVER_SPEED = 0;
+      const NEUTRAL_DRIFT = 0.42; // slow forward glide in neutral
       const ACCEL = 2.2;
       const DECEL = 1.35;
       const BRAKE_DECEL = 3.6;
@@ -927,14 +928,14 @@
       }
 
       function speedNorm() {
-        if (gear === "N" || speed <= 0.001) return 0;
+        if (speed <= 0.001) return 0;
         const cap = speedCap();
         return Math.max(0, Math.min(1, speed / Math.max(0.001, cap)));
       }
 
-      // Actual flight speed used by stars — 0 in neutral / while parked
       function driveSpeed() {
-        if (braking || gear === "N") return 0;
+        if (braking) return 0;
+        if (gear === "N") return Math.max(0, speed);
         if ((gear === "D" || gear === "R") && !thrusting && speed < 0.05) return 0;
         return Math.max(0, speed);
       }
@@ -1488,7 +1489,7 @@
       }
 
       function updateFlight(dt) {
-        // Gearbox: D forward, N hover/stop, R reverse — no crawl in N
+        // Gearbox: D forward, N slow glide, R reverse
         if (braking) {
           thrusting = false;
           const spdTBrake = speed / SPEED_MAX;
@@ -1500,8 +1501,7 @@
         } else if (gear === "N") {
           reverse = false;
           thrusting = false;
-          speed = expApproach(speed, 0, 8, dt);
-          if (speed < 0.03) speed = 0;
+          speed = expApproach(speed, NEUTRAL_DRIFT, 1.4, dt);
         } else if (gear === "R") {
           reverse = true;
           if (thrusting && canThrust()) {
