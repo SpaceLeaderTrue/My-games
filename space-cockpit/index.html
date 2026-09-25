@@ -1717,122 +1717,12 @@
         if (w < 2 || h < 2 || !canvas.width) resize();
 
         updateFlight(dt);
-        moveStars(dt);
 
         ctx.fillStyle = "#000005";
         ctx.fillRect(0, 0, w, h);
-
-        const look = starLook;
-        // Soft center atmosphere
-        const wantR = Math.min(w, h) * 0.6;
-        if (!glowGrad || glowCx !== cx || glowCy !== cy || glowR !== wantR) {
-          glowCx = cx; glowCy = cy; glowR = wantR;
-          glowGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, wantR);
-          glowGrad.addColorStop(0, look.atmos0);
-          glowGrad.addColorStop(0.42, look.atmos1);
-          glowGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-        }
-        ctx.fillStyle = glowGrad;
-        ctx.fillRect(0, 0, w, h);
-
-        const spdT = Math.max(0, Math.min(1, driveSpeed() / SPEED_MAX));
-        // Smooth trail length only — stars keep brightness when decelerating
-        const warpTarget = Math.pow(Math.max(0, spdT), 0.92);
-        warpSmooth = expApproach(warpSmooth, warpTarget, thrusting ? 5.5 : 2.4, dt);
-        const warp = warpSmooth;
-        const turnAmt = Math.min(1, Math.hypot(yawRate, pitchRate) / (TURN_RATE * 1.4));
-        vanishSX = expApproach(vanishSX, 0, 3, dt);
-        vanishSY = expApproach(vanishSY, 0, 3, dt);
-        if (!streakSprite) buildSprites();
-
-        ctx.globalCompositeOperation = "lighter";
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-
-        for (let i = 0; i < stars.length; i++) {
-          const s = stars[i];
-          if (s.z < NEAR_Z) continue;
-
-          const head = projectCam(s.x, s.y, s.z, camRoll);
-          const depth = 1 - Math.min(1, s.z / MAX_DEPTH);
-          const prox = 0.7 + Math.pow(depth, 0.55) * 0.3;
-          const streakFade = Math.min(1, warp * 1.35);
-
-          const doTrail = warp > 0.08 && streakFade > 0.05 && depth > look.trailDepthGate;
-          if (doTrail) {
-            const dz = (5 + warp * look.trailDz) * (0.25 + Math.pow(Math.max(0.15, depth), 1.2) * 1.6);
-            const backZ = reverse
-              ? Math.max(NEAR_Z, s.z - dz)
-              : Math.min(MAX_DEPTH, s.z + dz);
-            let tail = projectCam(s.x, s.y, backZ, camRoll);
-
-            if (turnAmt > 0.06 && s.pz != null) {
-              const prev = projectCam(s.px, s.py, s.pz, camRoll);
-              const k = Math.min(0.4, turnAmt * 0.45);
-              tail = {
-                x: tail.x * (1 - k) + prev.x * k,
-                y: tail.y * (1 - k) + prev.y * k,
-              };
-            }
-
-            let dx = head.x - tail.x;
-            let dy = head.y - tail.y;
-            let len = Math.hypot(dx, dy);
-            const maxLen = 6 + warp * look.trailMax + prox * 28;
-            if (len > maxLen && len > 0.001) {
-              const sc = maxLen / len;
-              tail = { x: head.x - dx * sc, y: head.y - dy * sc };
-              len = maxLen;
-            }
-
-            if (len > 1.2) {
-              const thick = Math.max(0.45, look.trailThick * (0.75 + warp * 0.7 + prox * 0.45));
-              ctx.beginPath();
-              ctx.moveTo(tail.x, tail.y);
-              ctx.lineTo(head.x, head.y);
-              ctx.strokeStyle = `rgba(255,255,255,${look.trailAlpha * streakFade * prox})`;
-              ctx.lineWidth = thick * 0.65;
-              ctx.stroke();
-            }
-          }
-        }
-
         ctx.globalCompositeOperation = "source-over";
         ctx.globalAlpha = 1;
-        for (let i = 0; i < stars.length; i++) {
-          const s = stars[i];
-          if (s.z < NEAR_Z) continue;
-          const head = projectCam(s.x, s.y, s.z, camRoll);
-          const depth = 1 - Math.min(1, s.z / MAX_DEPTH);
-          const r = Math.max(0.85, starRadius(s, look));
-          const tw = 0.86 + 0.14 * Math.sin(s.x * 0.017 + s.z * 0.008 + hoverRockT * (1.2 + (s.bright % 1)));
-          const alpha = Math.min(1, (0.78 + depth * 0.22) * tw);
-          if (look.id === "glow" && s.bright > 1.02) {
-            const glow = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, r * 3.4);
-            glow.addColorStop(0, `rgba(${s.r},${s.g},${s.b},0.42)`);
-            glow.addColorStop(0.45, `rgba(${s.r},${s.g},${s.b},0.12)`);
-            glow.addColorStop(1, `rgba(${s.r},${s.g},${s.b},0)`);
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(head.x, head.y, r * 3.4, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          ctx.fillStyle = `rgba(${s.r},${s.g},${s.b},${alpha})`;
-          ctx.beginPath();
-          ctx.arc(head.x, head.y, r, 0, Math.PI * 2);
-          ctx.fill();
-          if (look.id === "pin" && s.bright > 1.04 && r > 1.15) {
-            ctx.strokeStyle = `rgba(255,255,255,${0.45 * alpha})`;
-            ctx.lineWidth = 1;
-            const spike = r * 2.8;
-            ctx.beginPath();
-            ctx.moveTo(head.x - spike, head.y); ctx.lineTo(head.x + spike, head.y);
-            ctx.moveTo(head.x, head.y - spike); ctx.lineTo(head.x, head.y + spike);
-            ctx.stroke();
-          }
-        }
-        ctx.globalCompositeOperation = "source-over";
-        drawMilkyWay();
+        drawStarField();
         drawConstellations();
         drawMap();
         drawNavigator();
@@ -1896,6 +1786,35 @@
         }
         return pts;
       })();
+      const FIELD = (() => {
+        const pts = [];
+        let s = 0x9e3779b9;
+        const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+        for (let i = 0; i < 640; i++) {
+          pts.push({
+            x: (rnd() - 0.5) * 980,
+            y: (rnd() - 0.5) * 460,
+            z: rnd() * 3900,
+            r: 1.1 + rnd() * 2.2,
+            warm: rnd() > 0.82,
+          });
+        }
+        return pts;
+      })();
+      function drawStarField() {
+        for (let i = 0; i < FIELD.length; i++) {
+          const s = FIELD[i];
+          const c = worldToCam(s);
+          if (c.z < 3 || c.z > 4200) continue;
+          const p = projectCam(c.x, -c.y, c.z, camRoll);
+          if (p.x < -20 || p.y < -20 || p.x > w + 20 || p.y > h + 20) continue;
+          const rad = Math.max(0.6, Math.min(5, s.r * FOV / c.z));
+          ctx.fillStyle = s.warm ? "#ffe1b0" : "#eef3ff";
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, rad, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
       function drawMilkyWay() {
         ctx.save();
         ctx.globalCompositeOperation = "lighter";
