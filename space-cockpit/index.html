@@ -1828,10 +1828,85 @@
           }
         }
         ctx.globalCompositeOperation = "source-over";
+        drawConstellations();
         drawMap();
         drawNavigator();
 
         raf = requestAnimationFrame(frame);
+      }
+
+      // Real asterisms. RA is shifted so Orion sits ahead at the start; the shapes stay true.
+      const CONSTELLATIONS = [
+        { name: "Орион", lines: [[0, 1], [0, 4], [1, 2], [2, 3], [3, 4], [1, 5], [0, 6], [5, 6]], stars: [
+          ["Бетельгейзе", 5.92, 7.41], ["Беллатрикс", 5.42, 6.35], ["Минтака", 5.53, -0.30],
+          ["Альнилам", 5.60, -1.20], ["Альнитак", 5.68, -1.94], ["Ригель", 5.24, -8.20], ["Саиф", 5.80, -9.67],
+        ]},
+        { name: "Большая Медведица", lines: [[0, 1], [1, 2], [2, 3], [3, 0], [3, 4], [4, 5], [5, 6]], stars: [
+          ["Дубхе", 11.06, 61.75], ["Мерак", 11.03, 56.38], ["Фекда", 11.90, 53.69],
+          ["Мегрез", 12.26, 57.03], ["Алиот", 12.90, 55.96], ["Мицар", 13.40, 54.93], ["Алькаид", 13.79, 49.31],
+        ]},
+        { name: "Кассиопея", lines: [[0, 1], [1, 2], [2, 3], [3, 4]], stars: [
+          ["Каф", 0.15, 59.15], ["Шедар", 0.68, 56.54], ["Нави", 0.95, 60.72], ["Рукбах", 1.43, 60.24], ["Сегин", 1.91, 63.67],
+        ]},
+        { name: "Лебедь", lines: [[0, 1], [1, 2], [3, 1], [1, 4]], stars: [
+          ["Денеб", 20.69, 45.28], ["Садр", 20.37, 40.26], ["Альбирео", 19.51, 27.96], ["Дженах", 20.77, 33.97], ["Дельта", 19.75, 45.13],
+        ]},
+        { name: "Скорпион", lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5]], stars: [
+          ["Акраб", 16.09, -19.81], ["Дшубба", 16.01, -22.62], ["Антарес", 16.49, -26.43],
+          ["Тау", 16.60, -28.22], ["Шаула", 17.56, -37.10], ["Лесат", 17.51, -37.30],
+        ]},
+        { name: "Лев", lines: [[0, 1], [1, 2], [2, 3], [2, 4], [4, 0]], stars: [
+          ["Регул", 10.14, 11.97], ["Альгиеба", 10.33, 19.84], ["Зосма", 11.24, 20.52], ["Денебола", 11.82, 14.57], ["Чертан", 11.24, 15.43],
+        ]},
+        { name: "Южный Крест", lines: [[0, 1], [2, 3]], stars: [
+          ["Акрукс", 12.44, -63.10], ["Гакрукс", 12.52, -57.11], ["Мимоза", 12.80, -59.69], ["Дельта", 12.25, -58.75],
+        ]},
+        { name: "Лира", lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 1]], stars: [
+          ["Вега", 18.62, 38.78], ["Дзета", 18.74, 37.60], ["Шелиак", 18.84, 33.36], ["Сулафат", 18.98, 32.69], ["Дельта", 18.91, 36.90],
+        ]},
+      ];
+      function skyDir(rah, decDeg) {
+        const ra = (rah - 5.6) * 15 * Math.PI / 180;
+        const dec = decDeg * Math.PI / 180;
+        const c = Math.cos(dec);
+        return { x: c * Math.sin(ra), y: Math.sin(dec), z: c * Math.cos(ra) };
+      }
+      function drawConstellations() {
+        ctx.save();
+        ctx.lineWidth = 1.15;
+        ctx.font = "12px ui-monospace, monospace";
+        for (const fig of CONSTELLATIONS) {
+          const cams = fig.stars.map((s) => qRotate(qConj(orient), skyDir(s[1], s[2])));
+          ctx.strokeStyle = "rgba(186, 214, 255, 0.55)";
+          ctx.beginPath();
+          for (const [a, b] of fig.lines) {
+            const ca = cams[a], cb = cams[b];
+            if (ca.z < 0.12 || cb.z < 0.12) continue;
+            const pa = projectCam(ca.x, -ca.y, ca.z, camRoll);
+            const pb = projectCam(cb.x, -cb.y, cb.z, camRoll);
+            ctx.moveTo(pa.x, pa.y);
+            ctx.lineTo(pb.x, pb.y);
+          }
+          ctx.stroke();
+          let sx = 0, sy = 0, n = 0, front = 0;
+          fig.stars.forEach((s, i) => {
+            const c = cams[i];
+            if (c.z < 0.08) return;
+            front++;
+            const p = projectCam(c.x, -c.y, c.z, camRoll);
+            const bright = i === 0 || s[0] === "Вега" || s[0] === "Антарес" || s[0] === "Ригель";
+            ctx.fillStyle = bright ? "#fff6df" : "#f4f8ff";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, bright ? 2.4 : 1.7, 0, Math.PI * 2);
+            ctx.fill();
+            if (c.z > 0.25 && p.x > 0 && p.x < w && p.y > 0 && p.y < h) { sx += p.x; sy += p.y; n++; }
+          });
+          if (n >= 3 && front >= fig.stars.length - 1) {
+            ctx.fillStyle = "rgba(230, 238, 255, 0.82)";
+            ctx.fillText(fig.name, sx / n + 10, sy / n - 12);
+          }
+        }
+        ctx.restore();
       }
 
       function worldToCam(p) {
