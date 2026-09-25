@@ -36,6 +36,16 @@
       height: 100dvh;
     }
     .ios-scroll { height: 0; }
+    html:fullscreen,
+    html:-webkit-full-screen {
+      width: 100%; height: 100%; background: #000;
+    }
+    html:fullscreen body,
+    html:-webkit-full-screen body,
+    html:fullscreen .stage,
+    html:-webkit-full-screen .stage {
+      width: 100%; height: 100%; background: #000;
+    }
     #stars { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
     .cockpit {
       position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; pointer-events: none;
@@ -1465,14 +1475,15 @@
         }
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
         const vv = window.visualViewport;
-        w = vv ? vv.width : window.innerWidth;
-        h = vv ? vv.height : window.innerHeight;
-        if (document.documentElement.classList.contains("cinema")) {
-          w = window.innerWidth;
-          h = window.innerHeight;
+        const fsOn = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fsOn || document.documentElement.classList.contains("cinema")) {
+          w = Math.max(window.innerWidth, document.documentElement.clientWidth || 0);
+          h = Math.max(window.innerHeight, document.documentElement.clientHeight || 0);
           stage.style.width = w + "px";
           stage.style.height = h + "px";
         } else {
+          w = vv ? vv.width : window.innerWidth;
+          h = vv ? vv.height : window.innerHeight;
           stage.style.width = "";
           stage.style.height = "";
         }
@@ -2660,17 +2671,19 @@
           paintFsButton();
           return;
         }
-        const iphone = /iPhone|iPod/i.test(navigator.userAgent);
+        window.scrollTo(0, 0);
         const el = document.documentElement;
         const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
-        if (!iphone && req) {
-          try {
-            const done = req.call(el);
-            if (done && done.then) {
-              done.then(() => paintFsButton()).catch(() => enterCinema());
-            } else paintFsButton();
-            return;
-          } catch (_) { /* fall through to cinema */ }
+        if (req) {
+          let done;
+          try { done = req.call(el, { navigationUI: "hide" }); }
+          catch (_) {
+            try { done = req.call(el); }
+            catch (e2) { enterCinema(); return; }
+          }
+          if (done && done.then) done.then(() => { paintFsButton(); resize(); }).catch(() => enterCinema());
+          else { paintFsButton(); resize(); }
+          return;
         }
         enterCinema();
       }
@@ -2680,16 +2693,25 @@
           toggleFullscreen();
         });
       }
-      document.addEventListener("fullscreenchange", paintFsButton);
-      document.addEventListener("webkitfullscreenchange", paintFsButton);
+      function afterFullscreen() {
+        paintFsButton();
+        resize();
+        setTimeout(resize, 80);
+        setTimeout(resize, 350);
+      }
+      document.addEventListener("fullscreenchange", afterFullscreen);
+      document.addEventListener("webkitfullscreenchange", afterFullscreen);
       if (window.visualViewport) {
         visualViewport.addEventListener("resize", resize);
         visualViewport.addEventListener("scroll", () => { if (document.documentElement.classList.contains("cinema")) resize(); });
       }
       window.addEventListener("orientationchange", () => {
-        if (!document.documentElement.classList.contains("cinema")) return;
-        setTimeout(hideBars, 80);
-        setTimeout(hideBars, 400);
+        setTimeout(resize, 80);
+        setTimeout(resize, 400);
+        if (document.documentElement.classList.contains("cinema")) {
+          setTimeout(hideBars, 80);
+          setTimeout(hideBars, 400);
+        }
       });
 
       const ctrlToggle = document.getElementById("ctrlToggle");
