@@ -30,9 +30,9 @@
       overflow: auto; touch-action: pan-y;
     }
     html.cinema .stage {
-      position: fixed; inset: 0; z-index: 2;
-      width: 100%; height: 100%;
-      height: 100dvh;
+      position: fixed; top: 0; left: 0; z-index: 2;
+      width: 100vw; height: 100lvh;
+      max-width: none; max-height: none;
     }
     .ios-scroll { height: 0; }
     html.cinema .ios-scroll { height: 180vh; pointer-events: none; }
@@ -1467,6 +1467,24 @@
         const vv = window.visualViewport;
         w = vv ? vv.width : window.innerWidth;
         h = vv ? vv.height : window.innerHeight;
+        if (document.documentElement.classList.contains("cinema")) {
+          const landscape = window.innerWidth > window.innerHeight;
+          let sw = screen.width, sh = screen.height;
+          const dpr = window.devicePixelRatio || 1;
+          if (sw > window.innerWidth * 1.5) { sw /= dpr; sh /= dpr; }
+          if (landscape) {
+            w = Math.max(w, window.innerWidth, Math.max(sw, sh));
+            h = Math.max(h, window.innerHeight, Math.min(sw, sh));
+          } else {
+            w = Math.max(w, window.innerWidth);
+            h = Math.max(h, window.innerHeight);
+          }
+          stage.style.width = w + "px";
+          stage.style.height = h + "px";
+        } else {
+          stage.style.width = "";
+          stage.style.height = "";
+        }
         canvas.width = Math.floor(w * dpr);
         canvas.height = Math.floor(h * dpr);
         canvas.style.width = w + "px";
@@ -2621,18 +2639,22 @@
         fsToggle.setAttribute("aria-pressed", on ? "true" : "false");
         fsToggle.innerHTML = on ? "✕<small>выйти</small>" : "⛶<small>экран</small>";
       }
+      function hideBars() {
+        const landscape = window.innerWidth > window.innerHeight;
+        document.body.style.minHeight = (Math.max(window.innerHeight, window.innerWidth) + 200) + "px";
+        window.scrollTo(0, landscape ? 80 : 1);
+        resize();
+        paintFsButton();
+      }
       function enterCinema() {
         document.documentElement.classList.add("cinema");
-        const hideBars = () => {
-          window.scrollTo(0, Math.max(window.innerHeight, document.body.scrollHeight));
-          resize();
-          paintFsButton();
-        };
         hideBars();
-        setTimeout(hideBars, 80);
+        setTimeout(hideBars, 60);
+        setTimeout(hideBars, 320);
       }
       function exitCinema() {
         document.documentElement.classList.remove("cinema");
+        document.body.style.minHeight = "";
         window.scrollTo(0, 0);
         resize();
       }
@@ -2648,16 +2670,17 @@
           paintFsButton();
           return;
         }
+        const iphone = /iPhone|iPod/i.test(navigator.userAgent);
         const el = document.documentElement;
         const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
-        if (req) {
+        if (!iphone && req) {
           try {
             const done = req.call(el);
             if (done && done.then) {
               done.then(() => paintFsButton()).catch(() => enterCinema());
             } else paintFsButton();
             return;
-          } catch (_) { /* iPhone Safari has no element fullscreen */ }
+          } catch (_) { /* fall through to cinema */ }
         }
         enterCinema();
       }
@@ -2673,6 +2696,11 @@
         visualViewport.addEventListener("resize", resize);
         visualViewport.addEventListener("scroll", () => { if (document.documentElement.classList.contains("cinema")) resize(); });
       }
+      window.addEventListener("orientationchange", () => {
+        if (!document.documentElement.classList.contains("cinema")) return;
+        setTimeout(hideBars, 80);
+        setTimeout(hideBars, 400);
+      });
 
       const ctrlToggle = document.getElementById("ctrlToggle");
       if (ctrlToggle) {
