@@ -1671,7 +1671,7 @@
         const shownD = Math.hypot(shown.x - ship.x, shown.y - ship.y, shown.z - ship.z);
         if (mapFix) mapFix.textContent = shown.name + "  " + Math.max(0, shownD - shown.r).toFixed(0);
         poseHist.push({ x: ship.x, y: ship.y, z: ship.z, q: orient.slice(), roll: camRoll });
-        if (poseHist.length > 36) poseHist.shift();
+        if (poseHist.length > 12) poseHist.shift();
       }
 
       function moveStars(dt) {
@@ -1827,7 +1827,7 @@
         const pts = [];
         let s = 0x9e3779b9;
         const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
-        for (let i = 0; i < 2600; i++) {
+        for (let i = 0; i < 1100; i++) {
           pts.push({
             x: (rnd() - 0.5) * 1100,
             y: (rnd() - 0.5) * 640,
@@ -1864,8 +1864,8 @@
         const excess = Math.max(0, spd - TRAIL_FROM);
         const trailPoses = [];
         if (excess > 0.02 && poseHist.length > 2) {
-          const span = Math.min(poseHist.length, Math.round(8 + excess * 7));
-          const samples = 7;
+          const span = Math.min(poseHist.length, 4 + Math.round(excess * 1.4));
+          const samples = 4;
           for (let s = 0; s < samples; s++) {
             const idx = poseHist.length - 1 - Math.round(s * (span - 1) / (samples - 1));
             const pose = poseHist[Math.max(0, idx)];
@@ -1881,25 +1881,34 @@
           const p = projectCam(c.x, -c.y, c.z, camRoll);
           if (p.x < -40 || p.y < -40 || p.x > w + 40 || p.y > h + 40) continue;
           const rad = Math.max(0.7, Math.min(5.5, s.r * FOV / c.z));
-          if (trailPoses.length && c.z < 2800) {
-            const alpha = Math.min(0.85, excess * 0.22 * Math.min(1, 1100 / c.z));
+          if (trailPoses.length && c.z < 520 && rad > 1.15) {
+            const alpha = Math.min(0.55, excess * 0.16 * Math.min(1, 280 / c.z));
             ctx.strokeStyle = s.warm ? `rgba(255,214,160,${alpha})` : `rgba(214,228,255,${alpha})`;
-            ctx.lineWidth = Math.max(0.7, rad * 0.65);
+            ctx.lineWidth = Math.max(0.6, Math.min(1.6, rad * 0.45));
             ctx.beginPath();
-            let started = false;
-            for (let k = trailPoses.length - 1; k >= 0; k--) {
+            ctx.moveTo(p.x, p.y);
+            let px = p.x, py = p.y, drawn = 0;
+            for (let k = 1; k < trailPoses.length; k++) {
               const pose = trailPoses[k];
               const cam = qRotate(pose.inv, {
                 x: s.x - pose.x,
                 y: s.y - pose.y,
                 z: s.z - pose.z,
               });
-              if (cam.z < 1.5) { started = false; continue; }
+              if (cam.z < 1.5) break;
               const tp = projectCam(cam.x, -cam.y, cam.z, pose.roll);
-              if (!started) { ctx.moveTo(tp.x, tp.y); started = true; }
-              else ctx.lineTo(tp.x, tp.y);
+              const dx = tp.x - px, dy = tp.y - py;
+              const dist = Math.hypot(dx, dy);
+              if (drawn + dist > 72) {
+                const t = (72 - drawn) / Math.max(1, dist);
+                ctx.lineTo(px + dx * t, py + dy * t);
+                drawn = 72;
+                break;
+              }
+              ctx.lineTo(tp.x, tp.y);
+              px = tp.x; py = tp.y; drawn += dist;
             }
-            if (started) ctx.stroke();
+            if (drawn > 4) ctx.stroke();
           }
           ctx.fillStyle = s.warm ? "#ffe1b0" : "#eef3ff";
           ctx.beginPath();
