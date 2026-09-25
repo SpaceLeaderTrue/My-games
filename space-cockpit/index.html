@@ -1003,16 +1003,16 @@
         engGain.gain.value = 0;
         engOsc = audioCtx.createOscillator();
         engOsc.type = "sine";
-        engOsc.frequency.value = 55;
+        engOsc.frequency.value = 36;
         const engFilter = audioCtx.createBiquadFilter();
         engFilter.type = "lowpass";
-        engFilter.frequency.value = 420;
+        engFilter.frequency.value = 180;
         engFilter.Q.value = 0.7;
         engOsc2 = audioCtx.createOscillator();
         engOsc2.type = "sine";
         engOsc2.frequency.value = 82;
         const eng2Gain = audioCtx.createGain();
-        eng2Gain.gain.value = 0.35;
+        eng2Gain.gain.value = 0.12;
         engOsc3 = audioCtx.createOscillator();
         engOsc3.type = "sine";
         engOsc3.frequency.value = 110;
@@ -1173,8 +1173,8 @@
           f.Q.value = gal ? 2.2 : 4;
           o.connect(f); f.connect(g); g.connect(masterGain);
           if (rising) {
-            const a = gal ? 90 : 120;
-            const b = gal ? 720 : 480;
+            const a = gal ? 70 : 48;
+            const b = gal ? 280 : 140;
             o.frequency.setValueAtTime(a, t0);
             o.frequency.exponentialRampToValueAtTime(b, t0 + (gal ? 0.55 : 0.35));
             f.frequency.setValueAtTime(gal ? 300 : 400, t0);
@@ -1271,11 +1271,11 @@
           targetWind = (0.02 + spdT * 0.07) * startMute;
           targetShim = (0.02 + spdT * 0.05 + (thrustingNow ? 0.015 : 0)) * startMute;
         } else {
-          targetTone = 38 + spdT * 28 + (thrustingNow ? 14 : 0) + Math.max(0, accel) * 12;
-          targetEng = (0.045 + spdT * 0.07) * (thrustingNow ? 1.25 : 0.8) * startMute;
-          targetNoise = (0.03 + spdT * 0.11 + (thrustingNow ? 0.05 : 0)) * startMute;
-          targetWind = (0.012 + spdT * 0.08) * startMute;
-          targetShim = (0.008 + spdT * 0.02) * startMute;
+          targetTone = 28 + spdT * 16 + (thrustingNow ? 8 : 0);
+          targetEng = (0.03 + spdT * 0.04) * (thrustingNow ? 1.15 : 0.7) * startMute;
+          targetNoise = (0.05 + spdT * 0.14 + (thrustingNow ? 0.06 : 0)) * startMute;
+          targetWind = (0.02 + spdT * 0.12) * startMute;
+          targetShim = 0.004 * startMute;
         }
 
         if (brakingNow) {
@@ -1330,8 +1330,8 @@
         noiseGain.gain.setTargetAtTime(Math.max(0, noiseVol), t, 0.08);
         noiseFilter.frequency.setTargetAtTime(180 + spdT * 280 + (thrustingNow ? 90 : 0), t, 0.1);
         windGain.gain.setTargetAtTime(Math.max(0, windVol), t, 0.1);
-        noiseNode._rushLFO.frequency.setTargetAtTime(5 + spdT * 11 + (thrustingNow ? 7 : 0), t, 0.12);
-        noiseNode._rushDepth.gain.setTargetAtTime(0.06 + spdT * 0.2 + (thrustingNow ? 0.08 : 0), t, 0.12);
+        noiseNode._rushLFO.frequency.setTargetAtTime(2.2 + spdT * 3.5, t, 0.2);
+        noiseNode._rushDepth.gain.setTargetAtTime(0.04 + spdT * 0.08, t, 0.2);
         noiseNode._windFilter.frequency.setTargetAtTime(700 + spdT * 1600, t, 0.12);
         shimmerGain.gain.setTargetAtTime(Math.max(0, shimmerVol), t, 0.1);
         shimmerOsc.frequency.setTargetAtTime(180 + spdT * 260, t, 0.12);
@@ -2505,8 +2505,8 @@
           : "rgba(180,200,230,0.2)";
         thrustBtn.style.color = thrusting ? "#f2f7ff" : "#e8eef8";
       }
-      thrustBtn.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
+      let thrustPtr = null;
+      function beginThrust() {
         if (braking || thrustGate) return;
         if (gear === "N") requestGear("D");
         if (!canThrust()) return;
@@ -2514,21 +2514,27 @@
         thrusting = true;
         thrustPointer = true;
         setThrustVisual();
+      }
+      function endThrustPointer(id) {
+        if (thrustPtr == null || id !== thrustPtr) return;
+        thrustPtr = null;
+        thrusting = spaceDown || spaceSticky;
+        thrustPointer = false;
+        if (!thrusting) thrustGate = false;
+        setThrustVisual();
+      }
+      thrustBtn.style.touchAction = "none";
+      thrustBtn.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        thrustPtr = e.pointerId;
+        try { thrustBtn.setPointerCapture(e.pointerId); } catch (_) {}
+        beginThrust();
       });
-      window.addEventListener("pointerup", () => {
-        if (thrustPointer) {
-          thrusting = false;
-          thrustPointer = false;
-          thrustGate = false;
-          setThrustVisual();
-        }
-      });
-      window.addEventListener("pointercancel", () => {
-        if (thrustPointer) {
-          thrusting = false;
-          thrustPointer = false;
-          thrustGate = false;
-          setThrustVisual();
+      thrustBtn.addEventListener("pointerup", (e) => endThrustPointer(e.pointerId));
+      thrustBtn.addEventListener("lostpointercapture", (e) => {
+        if (e.pointerId === thrustPtr && thrusting) {
+          try { thrustBtn.setPointerCapture(e.pointerId); } catch (_) {}
         }
       });
       stage.appendChild(thrustBtn);
