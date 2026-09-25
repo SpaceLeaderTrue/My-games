@@ -26,16 +26,16 @@
     }
     .stage { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; }
     html.cinema, html.cinema body {
-      position: static; height: auto; min-height: 100%;
-      overflow: auto; touch-action: pan-y;
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      overflow: hidden; touch-action: none;
     }
     html.cinema .stage {
-      position: fixed; top: 0; left: 0; z-index: 2;
-      width: 100vw; height: 100lvh;
-      max-width: none; max-height: none;
+      position: fixed; inset: 0; z-index: 2;
+      width: 100%; height: 100%;
+      height: 100dvh;
     }
     .ios-scroll { height: 0; }
-    html.cinema .ios-scroll { height: 180vh; pointer-events: none; }
     #stars { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
     .cockpit {
       position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; pointer-events: none;
@@ -1468,17 +1468,8 @@
         w = vv ? vv.width : window.innerWidth;
         h = vv ? vv.height : window.innerHeight;
         if (document.documentElement.classList.contains("cinema")) {
-          const landscape = window.innerWidth > window.innerHeight;
-          let sw = screen.width, sh = screen.height;
-          const dpr = window.devicePixelRatio || 1;
-          if (sw > window.innerWidth * 1.5) { sw /= dpr; sh /= dpr; }
-          if (landscape) {
-            w = Math.max(w, window.innerWidth, Math.max(sw, sh));
-            h = Math.max(h, window.innerHeight, Math.min(sw, sh));
-          } else {
-            w = Math.max(w, window.innerWidth);
-            h = Math.max(h, window.innerHeight);
-          }
+          w = window.innerWidth;
+          h = window.innerHeight;
           stage.style.width = w + "px";
           stage.style.height = h + "px";
         } else {
@@ -2629,9 +2620,8 @@
       }
 
       const fsToggle = document.getElementById("fsToggle");
-      let fsVideo = null;
       function fsActive() {
-        return !!(document.fullscreenElement || document.webkitFullscreenElement || (fsVideo && fsVideo.webkitDisplayingFullscreen) || document.documentElement.classList.contains("cinema"));
+        return !!(document.fullscreenElement || document.webkitFullscreenElement || document.documentElement.classList.contains("cinema"));
       }
       function paintFsButton() {
         if (!fsToggle) return;
@@ -2641,9 +2631,8 @@
         fsToggle.innerHTML = on ? "✕<small>выйти</small>" : "⛶<small>экран</small>";
       }
       function hideBars() {
-        const landscape = window.innerWidth > window.innerHeight;
-        document.body.style.minHeight = (Math.max(window.innerHeight, window.innerWidth) + 200) + "px";
-        window.scrollTo(0, landscape ? 80 : 1);
+        document.body.style.minHeight = "";
+        window.scrollTo(0, 0);
         resize();
         paintFsButton();
       }
@@ -2661,16 +2650,6 @@
       }
       function toggleFullscreen() {
         const nativeOn = document.fullscreenElement || document.webkitFullscreenElement;
-        const iphone = /iPhone|iPod/i.test(navigator.userAgent);
-        if (fsVideo && fsVideo.webkitDisplayingFullscreen) {
-          if (fsVideo.webkitExitFullscreen) fsVideo.webkitExitFullscreen();
-          exitCinema();
-          paintFsButton();
-          return;
-        }
-        if (iphone) {
-          if (enterIosMovie()) return;
-        }
         if (nativeOn || document.documentElement.classList.contains("cinema")) {
           exitCinema();
           const exit = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
@@ -2681,13 +2660,10 @@
           paintFsButton();
           return;
         }
-        if (iphone) {
-          enterCinema();
-          return;
-        }
+        const iphone = /iPhone|iPod/i.test(navigator.userAgent);
         const el = document.documentElement;
         const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
-        if (req) {
+        if (!iphone && req) {
           try {
             const done = req.call(el);
             if (done && done.then) {
@@ -2697,55 +2673,6 @@
           } catch (_) { /* fall through to cinema */ }
         }
         enterCinema();
-      }
-      function enterIosMovie() {
-        if (!fsVideo) {
-          fsVideo = document.createElement("video");
-          fsVideo.setAttribute("playsinline", "");
-          fsVideo.playsInline = true;
-          fsVideo.muted = true;
-          fsVideo.autoplay = true;
-          fsVideo.style.cssText = "position:fixed;inset:0;width:100%;height:100%;opacity:0.02;z-index:1;pointer-events:none;background:#000";
-          document.body.appendChild(fsVideo);
-          fsVideo.addEventListener("webkitendfullscreen", () => {
-            exitCinema();
-            if (!thrustPtr && !spaceDown) {
-              thrusting = false;
-              thrustPointer = false;
-              if (typeof setThrustVisual === "function") setThrustVisual();
-            }
-            stickX = 0;
-            stickY = 0;
-            paintFsButton();
-          });
-        }
-        try {
-          if (!fsVideo.srcObject && canvas.captureStream) fsVideo.srcObject = canvas.captureStream(30);
-        } catch (_) { return false; }
-        if (!fsVideo.srcObject || typeof fsVideo.webkitEnterFullscreen !== "function") return false;
-        const played = fsVideo.play();
-        if (played && played.catch) played.catch(() => {});
-        try {
-          fsVideo.webkitEnterFullscreen();
-          beginThrust();
-          const ask = window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission;
-          if (ask) ask.call(DeviceOrientationEvent).then((s) => { if (s === "granted") armTilt(); }).catch(() => {});
-          else armTilt();
-          return true;
-        } catch (_) { return false; }
-      }
-      let tiltOn = false;
-      function armTilt() {
-        if (tiltOn) return;
-        tiltOn = true;
-        window.addEventListener("deviceorientation", (e) => {
-          if (!fsVideo || !fsVideo.webkitDisplayingFullscreen) return;
-          const landscape = window.innerWidth > window.innerHeight;
-          const g = e.gamma || 0;
-          const b = e.beta || 0;
-          stickX = Math.max(-1, Math.min(1, (landscape ? b : g) / 32));
-          stickY = Math.max(-1, Math.min(1, (landscape ? g : b - 35) / 32));
-        });
       }
       if (fsToggle) {
         fsToggle.addEventListener("click", (e) => {
