@@ -135,6 +135,25 @@
     .sheet .grid b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
     .sheet .grid span { color: var(--muted); font-size: 11px; }
     #nextLevel { width: 100%; margin-top: 8px; }
+    .rank { margin: 0 0 12px; }
+    .rank form { display: flex; gap: 8px; }
+    .rank input {
+      flex: 1; min-width: 0; pointer-events: auto;
+      border-radius: 999px; border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06); color: var(--ink);
+      font: 700 14px/1 "Manrope", sans-serif; padding: 12px 14px;
+    }
+    .rank input::placeholder { color: var(--muted); }
+    .rank button { width: auto; white-space: nowrap; }
+    .rank ol {
+      list-style: none; margin-top: 10px; max-height: 148px; overflow: auto;
+      pointer-events: auto;
+    }
+    .rank li {
+      display: flex; justify-content: space-between; gap: 8px;
+      font-size: 13px; padding: 3px 0; color: var(--muted);
+    }
+    .rank li.me { color: var(--lamp); }
     .toast {
       left: 0; right: 0; top: 92px; width: max-content; margin: 0 auto;
       background: rgba(255, 209, 92, 0.95); color: #2a1408;
@@ -182,6 +201,13 @@
       <div><b id="overScore">0</b><span>свет</span></div>
       <div><b id="overCombo">×1</b><span>волна</span></div>
       <div><b id="overBest">0</b><span>рекорд</span></div>
+    </div>
+    <div class="rank">
+      <form id="rankForm">
+        <input id="rankName" maxlength="16" placeholder="твоё имя" autocomplete="nickname" enterkeyhint="done">
+        <button type="submit" id="rankSave">В рейтинг</button>
+      </form>
+      <ol id="rankList"></ol>
     </div>
     <button class="primary" type="button" id="again">Ещё раз</button>
     <button type="button" id="nextLevel" hidden>Дальше</button>
@@ -340,7 +366,7 @@
 
   function emptyBook() { return RADII.map(() => 0); }
   function loadSave() {
-    const blank = { best: 0, bests: [0, 0, 0], discovers: emptyBook(), books: [emptyBook(), emptyBook(), emptyBook()], merges: 0, gardens: 0, suns: 0, lastDay: "", streak: 0, theme: "night", night: false, muted: false, mastery: 0, masteries: [0, 0, 0], level: 0, unlocked: 0, cleared: [0, 0, 0] };
+    const blank = { best: 0, bests: [0, 0, 0], discovers: emptyBook(), books: [emptyBook(), emptyBook(), emptyBook()], merges: 0, gardens: 0, suns: 0, lastDay: "", streak: 0, theme: "night", night: false, muted: false, mastery: 0, masteries: [0, 0, 0], level: 0, unlocked: 0, cleared: [0, 0, 0], board: [], playerName: "" };
     try {
       const raw = localStorage.getItem(SAVE_KEY);
       const data = raw ? Object.assign(blank, JSON.parse(raw)) : blank;
@@ -348,6 +374,7 @@
       if (Array.isArray(data.discovers)) data.books[0] = data.books[0].map((n, i) => n || data.discovers[i] || 0);
       if (!data.bests) data.bests = [data.best || 0, 0, 0];
       if (!data.masteries) data.masteries = [data.mastery || 0, 0, 0];
+      if (!Array.isArray(data.board)) data.board = [];
       data.level = Math.min(2, data.level || 0);
       data.unlocked = Math.max(data.unlocked || 0, data.level);
       return data;
@@ -739,6 +766,10 @@
     document.getElementById("overScore").textContent = fmt(S.score);
     document.getElementById("overCombo").textContent = "×" + S.maxCombo;
     document.getElementById("overBest").textContent = fmt(levelBest());
+    const nameInput = document.getElementById("rankName");
+    nameInput.value = save.playerName || "";
+    document.getElementById("rankSave").disabled = false;
+    renderBoard("");
     sheet.hidden = false;
     if (!won) {
       tone(659, 0.22, 0.05, "sine");
@@ -781,6 +812,61 @@
   }
 
   function fmt(n) { return Math.floor(n).toLocaleString("ru-RU"); }
+  function cleanName(raw) {
+    return String(raw || "").replace(/\s+/g, " ").trim().slice(0, 16);
+  }
+  function renderBoard(highlight) {
+    const list = document.getElementById("rankList");
+    const rows = save.board.slice().sort((a, b) => b.score - a.score).slice(0, 10);
+    list.innerHTML = "";
+    if (!rows.length) {
+      const empty = document.createElement("li");
+      empty.textContent = "пока пусто — впиши имя";
+      list.appendChild(empty);
+      return;
+    }
+    rows.forEach((row, i) => {
+      const li = document.createElement("li");
+      if (highlight && row.name === highlight) li.className = "me";
+      const who = document.createElement("span");
+      who.textContent = (i + 1) + ". " + row.name;
+      const pts = document.createElement("span");
+      pts.textContent = fmt(row.score) + " · " + (LEVELS[row.level] ? LEVELS[row.level].name : "");
+      li.appendChild(who);
+      li.appendChild(pts);
+      list.appendChild(li);
+    });
+  }
+  function saveRank(raw) {
+    const name = cleanName(raw);
+    if (!name) {
+      toast("нужно имя");
+      return;
+    }
+    if (S.score <= 0) {
+      toast("сначала набери свет");
+      return;
+    }
+    save.playerName = name;
+    const prev = save.board.find((row) => row.name.toLowerCase() === name.toLowerCase());
+    if (prev && prev.score >= S.score) {
+      toast("твой максимум уже " + fmt(prev.score));
+      renderBoard(prev.name);
+      return;
+    }
+    if (prev) {
+      prev.score = S.score;
+      prev.level = save.level;
+      prev.name = name;
+    } else {
+      save.board.push({ name, score: S.score, level: save.level });
+    }
+    save.board.sort((a, b) => b.score - a.score);
+    save.board = save.board.slice(0, 20);
+    persist();
+    renderBoard(name);
+    toast("ты в рейтинге");
+  }
   function levelBest() { return save.bests[save.level] || 0; }
   function winLevel() {
     if (S.won || S.over) return;
@@ -1431,6 +1517,11 @@
     visualViewport.addEventListener("scroll", layout);
   }
 
+  document.getElementById("rankForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    saveRank(document.getElementById("rankName").value);
+  });
   document.getElementById("nextLevel").addEventListener("click", (e) => {
     e.stopPropagation();
     applyLevel(Math.min(LEVELS.length - 1, save.level + 1));
