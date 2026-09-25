@@ -341,9 +341,31 @@
       box-shadow: 0 0 16px rgba(158,193,255,0.35), 0 6px 14px rgba(0,0,0,0.45);
       border-color: rgba(158,193,255,0.65);
     }
-    .ctrl-toggle {
+    .galaxy-nav {
       position: absolute;
       top: max(10px, env(safe-area-inset-top));
+      left: max(10px, env(safe-area-inset-left));
+      z-index: 10;
+      width: 168px;
+      padding: 8px 8px 6px;
+      border-radius: 14px;
+      background: rgba(6, 8, 12, 0.72);
+      border: 1px solid rgba(180, 200, 230, 0.18);
+      backdrop-filter: blur(10px);
+      pointer-events: auto;
+    }
+    .galaxy-nav .label {
+      font-family: var(--display);
+      font-size: 8px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(180, 205, 235, 0.75);
+      margin-bottom: 4px;
+    }
+    #navMap { width: 152px; height: 152px; display: block; cursor: pointer; border-radius: 8px; }
+    .ctrl-toggle {
+      position: absolute;
+      top: calc(max(10px, env(safe-area-inset-top)) + 188px);
       left: max(10px, env(safe-area-inset-left));
       z-index: 10;
       pointer-events: auto;
@@ -482,6 +504,9 @@
       .readout .v { font-size: 12px; }
       .adi { max-height: 70px; }
       .star-looks button { min-width: 58px; padding: 7px 8px; font-size: 9px; }
+      .galaxy-nav { width: 124px; }
+      #navMap { width: 108px; height: 108px; }
+      .ctrl-toggle { top: calc(max(10px, env(safe-area-inset-top)) + 146px); }
       .cockpit.immersive .dash { transform: translateX(-50%) translateY(82%); opacity: 0.22; }
     }
   </style>
@@ -489,6 +514,10 @@
 <body>
   <main class="stage" id="stage">
     <canvas id="stars" aria-hidden="true"></canvas>
+    <div class="galaxy-nav" id="galaxyNav">
+      <div class="label">Галактика</div>
+      <canvas id="navMap" width="152" height="152" aria-label="Навигатор по галактике"></canvas>
+    </div>
     <div class="star-looks" id="starLooks" role="group" aria-label="Стиль звёзд">
       <button type="button" data-look="pin" class="on" aria-pressed="true">A · PIN<small>точки</small></button>
       <button type="button" data-look="streak" aria-pressed="false">B · STREAK<small>следы</small></button>
@@ -640,15 +669,15 @@
           atmos1: "rgba(8, 12, 20, 0.04)",
           coreComp: "source-over",
           // Depth growth: tiny at infinity → cap at classic A size
-          coreMinFar: 0.35,
-          coreMax: 1.35,
-          growPow: 1.45,
-          coreMin: 0.35,
+          coreMinFar: 0.9,
+          coreMax: 2.15,
+          growPow: 1.15,
+          coreMin: 0.9,
           coreScale: 1.0,
           haloOuter: 0,
           haloMid: 0,
-          trailThick: 0.48,
-          trailAlpha: 0.7,
+          trailThick: 0.4,
+          trailAlpha: 0.45,
           trailDz: 48,
           trailMax: 30,
           trailDepthGate: 0.18,
@@ -664,18 +693,18 @@
           bright: [0.9, 1.1],
           atmos0: "rgba(20, 30, 52, 0.14)",
           atmos1: "rgba(10, 14, 24, 0.06)",
-          coreComp: "lighter",
-          coreMinFar: 1.0,
-          coreMax: 2.8,
-          growPow: 1.1,
-          coreMin: 1.7,
-          coreScale: 1.45,
-          haloOuter: 0.22,
-          haloMid: 0.55,
-          trailThick: 0.85,
-          trailAlpha: 0.9,
-          trailDz: 70,
-          trailMax: 42,
+          coreComp: "source-over",
+          coreMinFar: 0.85,
+          coreMax: 1.9,
+          growPow: 1.2,
+          coreMin: 0.85,
+          coreScale: 1.1,
+          haloOuter: 0,
+          haloMid: 0,
+          trailThick: 0.7,
+          trailAlpha: 0.72,
+          trailDz: 90,
+          trailMax: 56,
           trailDepthGate: 0.1,
           zSpeed: 1.0,
         },
@@ -689,18 +718,18 @@
           bright: [0.9, 1.25],
           atmos0: "rgba(18, 28, 48, 0.08)",
           atmos1: "rgba(8, 12, 22, 0.03)",
-          coreComp: "lighter",
-          coreMinFar: 1.2,
-          coreMax: 3.4,
-          growPow: 1.05,
-          coreMin: 2.0,
-          coreScale: 1.7,
-          haloOuter: 0.32,
-          haloMid: 0.7,
-          trailThick: 1.05,
-          trailAlpha: 1.0,
-          trailDz: 78,
-          trailMax: 48,
+          coreComp: "source-over",
+          coreMinFar: 1.05,
+          coreMax: 2.35,
+          growPow: 1.08,
+          coreMin: 1.05,
+          coreScale: 1.2,
+          haloOuter: 0,
+          haloMid: 0,
+          trailThick: 0.55,
+          trailAlpha: 0.4,
+          trailDz: 54,
+          trailMax: 28,
           trailDepthGate: 0.08,
           zSpeed: 1.0,
         },
@@ -782,6 +811,9 @@
       ];
       const ROUTES = [[0, 1], [1, 2], [1, 3], [2, 4], [3, 4]];
       const mapFix = document.getElementById("mapFix");
+      const navMap = document.getElementById("navMap");
+      const navCtx = navMap.getContext("2d");
+      let navTarget = PLACES[1];
       let stickX = 0;
       let stickY = 0;
       let stickSX = 0; // smoothed stick
@@ -1596,7 +1628,9 @@
           const d = Math.hypot(p.x - ship.x, p.y - ship.y, p.z - ship.z);
           if (d < nearD) { nearD = d; near = p; }
         }
-        if (mapFix) mapFix.textContent = near.name + "  " + Math.max(0, nearD - near.r).toFixed(0);
+        const shown = navTarget || near;
+        const shownD = Math.hypot(shown.x - ship.x, shown.y - ship.y, shown.z - ship.z);
+        if (mapFix) mapFix.textContent = shown.name + "  " + Math.max(0, shownD - shown.r).toFixed(0);
       }
 
       function moveStars(dt) {
@@ -1759,40 +1793,43 @@
           }
         }
 
-        // Star cores — grow from speck at far to look.coreMax near camera
-        ctx.globalCompositeOperation = look.coreComp;
+        ctx.globalCompositeOperation = "source-over";
         ctx.globalAlpha = 1;
         for (let i = 0; i < stars.length; i++) {
           const s = stars[i];
           if (s.z < NEAR_Z) continue;
           const head = projectCam(s.x, s.y, s.z, camRoll);
           const depth = 1 - Math.min(1, s.z / MAX_DEPTH);
-          const r = starRadius(s, look);
-
-          if (look.haloOuter > 0) {
+          const r = Math.max(0.85, starRadius(s, look));
+          const tw = 0.86 + 0.14 * Math.sin(s.x * 0.017 + s.z * 0.008 + hoverRockT * (1.2 + (s.bright % 1)));
+          const alpha = Math.min(1, (0.78 + depth * 0.22) * tw);
+          if (look.id === "glow" && s.bright > 1.02) {
+            const glow = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, r * 3.4);
+            glow.addColorStop(0, `rgba(${s.r},${s.g},${s.b},0.42)`);
+            glow.addColorStop(0.45, `rgba(${s.r},${s.g},${s.b},0.12)`);
+            glow.addColorStop(1, `rgba(${s.r},${s.g},${s.b},0)`);
+            ctx.fillStyle = glow;
             ctx.beginPath();
-            ctx.fillStyle = `rgba(220,230,255,${look.haloOuter + depth * 0.2})`;
-            ctx.arc(head.x, head.y, r * 2.4, 0, Math.PI * 2);
+            ctx.arc(head.x, head.y, r * 3.4, 0, Math.PI * 2);
             ctx.fill();
           }
-          if (look.haloMid > 0) {
-            ctx.beginPath();
-            ctx.fillStyle = `rgba(255,255,255,${look.haloMid + depth * 0.25})`;
-            ctx.arc(head.x, head.y, r * 1.25, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-          // Far stars: soft alpha so they "fade in" as tiny points
-          const farFade = 0.45 + depth * 0.55;
+          ctx.fillStyle = `rgba(${s.r},${s.g},${s.b},${alpha})`;
           ctx.beginPath();
-          ctx.fillStyle = look.haloMid > 0
-            ? "#ffffff"
-            : `rgba(255,255,255,${farFade})`;
-          ctx.arc(head.x, head.y, Math.max(0.35, r * (look.haloMid > 0 ? 0.72 : 0.92)), 0, Math.PI * 2);
+          ctx.arc(head.x, head.y, r, 0, Math.PI * 2);
           ctx.fill();
+          if (look.id === "pin" && s.bright > 1.04 && r > 1.15) {
+            ctx.strokeStyle = `rgba(255,255,255,${0.45 * alpha})`;
+            ctx.lineWidth = 1;
+            const spike = r * 2.8;
+            ctx.beginPath();
+            ctx.moveTo(head.x - spike, head.y); ctx.lineTo(head.x + spike, head.y);
+            ctx.moveTo(head.x, head.y - spike); ctx.lineTo(head.x, head.y + spike);
+            ctx.stroke();
+          }
         }
         ctx.globalCompositeOperation = "source-over";
         drawMap();
+        drawNavigator();
 
         raf = requestAnimationFrame(frame);
       }
@@ -1840,8 +1877,77 @@
             ctx.fillText(o.p.name, pr.x + rad + 6, pr.y - 2);
           }
         }
+        if (navTarget) {
+          const c = worldToCam(navTarget);
+          if (c.z > 1.2) {
+            const pr = projectCam(c.x, -c.y, c.z, camRoll);
+            const rad = Math.max(10, navTarget.r * (FOV / c.z) + 8);
+            ctx.strokeStyle = "rgba(255, 214, 140, 0.9)";
+            ctx.lineWidth = 1.25;
+            ctx.strokeRect(pr.x - rad, pr.y - rad, rad * 2, rad * 2);
+          }
+        }
         ctx.restore();
       }
+
+      function drawNavigator() {
+        const s = navMap.width;
+        const c = navCtx;
+        c.clearRect(0, 0, s, s);
+        c.fillStyle = "rgba(4, 8, 16, 0.55)";
+        c.fillRect(0, 0, s, s);
+        const minX = -560, maxX = 680, minZ = -220, maxZ = 2600;
+        const X = (x) => 14 + (x - minX) / (maxX - minX) * (s - 28);
+        const Z = (z) => s - 14 - (z - minZ) / (maxZ - minZ) * (s - 28);
+        c.strokeStyle = "rgba(126, 182, 255, 0.35)";
+        c.lineWidth = 1;
+        c.beginPath();
+        for (const [ia, ib] of ROUTES) {
+          c.moveTo(X(PLACES[ia].x), Z(PLACES[ia].z));
+          c.lineTo(X(PLACES[ib].x), Z(PLACES[ib].z));
+        }
+        c.stroke();
+        for (const p of PLACES) {
+          const on = p === navTarget;
+          c.fillStyle = p.color;
+          c.beginPath();
+          c.arc(X(p.x), Z(p.z), on ? 4.2 : 3, 0, Math.PI * 2);
+          c.fill();
+          if (on) {
+            c.strokeStyle = "rgba(255,255,255,0.85)";
+            c.stroke();
+          }
+        }
+        const fwd = forwardWorld();
+        c.save();
+        c.translate(X(ship.x), Z(ship.z));
+        c.rotate(Math.atan2(fwd.x, fwd.z));
+        c.fillStyle = "#fff";
+        c.beginPath();
+        c.moveTo(0, -7);
+        c.lineTo(4.5, 5);
+        c.lineTo(-4.5, 5);
+        c.closePath();
+        c.fill();
+        c.restore();
+      }
+
+      navMap.addEventListener("pointerdown", (e) => {
+        e.stopPropagation();
+        const rect = navMap.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (navMap.width / rect.width);
+        const my = (e.clientY - rect.top) * (navMap.height / rect.height);
+        const minX = -560, maxX = 680, minZ = -220, maxZ = 2600;
+        const s = navMap.width;
+        const X = (x) => 14 + (x - minX) / (maxX - minX) * (s - 28);
+        const Z = (z) => s - 14 - (z - minZ) / (maxZ - minZ) * (s - 28);
+        let best = null, bestD = 16;
+        for (const p of PLACES) {
+          const d = Math.hypot(X(p.x) - mx, Z(p.z) - my);
+          if (d < bestD) { bestD = d; best = p; }
+        }
+        if (best) navTarget = best;
+      });
 
       function syncStickFromKeys() {
         if (stickMode && joyActive) return;
@@ -2153,7 +2259,7 @@
       let dragging = false;
       stage.addEventListener("pointerdown", (e) => {
         if (stickMode) return; // analog stick owns steering on touch
-        if (e.target.closest(".pad, button, .audio-btn, .joy, .ctrl-toggle, .view-toggle, .star-looks, .gearbox")) return;
+        if (e.target.closest(".pad, button, .audio-btn, .joy, .ctrl-toggle, .view-toggle, .star-looks, .gearbox, .galaxy-nav")) return;
         dragging = true;
         stage.setPointerCapture(e.pointerId);
       });
