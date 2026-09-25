@@ -2629,8 +2629,9 @@
       }
 
       const fsToggle = document.getElementById("fsToggle");
+      let fsVideo = null;
       function fsActive() {
-        return !!(document.fullscreenElement || document.webkitFullscreenElement || document.documentElement.classList.contains("cinema"));
+        return !!(document.fullscreenElement || document.webkitFullscreenElement || (fsVideo && fsVideo.webkitDisplayingFullscreen) || document.documentElement.classList.contains("cinema"));
       }
       function paintFsButton() {
         if (!fsToggle) return;
@@ -2660,6 +2661,16 @@
       }
       function toggleFullscreen() {
         const nativeOn = document.fullscreenElement || document.webkitFullscreenElement;
+        const iphone = /iPhone|iPod/i.test(navigator.userAgent);
+        if (fsVideo && fsVideo.webkitDisplayingFullscreen) {
+          if (fsVideo.webkitExitFullscreen) fsVideo.webkitExitFullscreen();
+          exitCinema();
+          paintFsButton();
+          return;
+        }
+        if (iphone) {
+          if (enterIosMovie()) return;
+        }
         if (nativeOn || document.documentElement.classList.contains("cinema")) {
           exitCinema();
           const exit = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
@@ -2670,10 +2681,13 @@
           paintFsButton();
           return;
         }
-        const iphone = /iPhone|iPod/i.test(navigator.userAgent);
+        if (iphone) {
+          enterCinema();
+          return;
+        }
         const el = document.documentElement;
         const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
-        if (!iphone && req) {
+        if (req) {
           try {
             const done = req.call(el);
             if (done && done.then) {
@@ -2683,6 +2697,55 @@
           } catch (_) { /* fall through to cinema */ }
         }
         enterCinema();
+      }
+      function enterIosMovie() {
+        if (!fsVideo) {
+          fsVideo = document.createElement("video");
+          fsVideo.setAttribute("playsinline", "");
+          fsVideo.playsInline = true;
+          fsVideo.muted = true;
+          fsVideo.autoplay = true;
+          fsVideo.style.cssText = "position:fixed;inset:0;width:100%;height:100%;opacity:0.02;z-index:1;pointer-events:none;background:#000";
+          document.body.appendChild(fsVideo);
+          fsVideo.addEventListener("webkitendfullscreen", () => {
+            exitCinema();
+            if (!thrustPtr && !spaceDown) {
+              thrusting = false;
+              thrustPointer = false;
+              if (typeof setThrustVisual === "function") setThrustVisual();
+            }
+            stickX = 0;
+            stickY = 0;
+            paintFsButton();
+          });
+        }
+        try {
+          if (!fsVideo.srcObject && canvas.captureStream) fsVideo.srcObject = canvas.captureStream(30);
+        } catch (_) { return false; }
+        if (!fsVideo.srcObject || typeof fsVideo.webkitEnterFullscreen !== "function") return false;
+        const played = fsVideo.play();
+        if (played && played.catch) played.catch(() => {});
+        try {
+          fsVideo.webkitEnterFullscreen();
+          beginThrust();
+          const ask = window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission;
+          if (ask) ask.call(DeviceOrientationEvent).then((s) => { if (s === "granted") armTilt(); }).catch(() => {});
+          else armTilt();
+          return true;
+        } catch (_) { return false; }
+      }
+      let tiltOn = false;
+      function armTilt() {
+        if (tiltOn) return;
+        tiltOn = true;
+        window.addEventListener("deviceorientation", (e) => {
+          if (!fsVideo || !fsVideo.webkitDisplayingFullscreen) return;
+          const landscape = window.innerWidth > window.innerHeight;
+          const g = e.gamma || 0;
+          const b = e.beta || 0;
+          stickX = Math.max(-1, Math.min(1, (landscape ? b : g) / 32));
+          stickY = Math.max(-1, Math.min(1, (landscape ? g : b - 35) / 32));
+        });
       }
       if (fsToggle) {
         fsToggle.addEventListener("click", (e) => {
