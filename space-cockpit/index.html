@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>SPACE — Cockpit</title>
   <style>
     :root {
@@ -22,6 +25,17 @@
       touch-action: none; user-select: none; -webkit-user-select: none;
     }
     .stage { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; }
+    html.cinema, html.cinema body {
+      position: static; height: auto; min-height: 100%;
+      overflow: auto; touch-action: pan-y;
+    }
+    html.cinema .stage {
+      position: fixed; inset: 0; z-index: 2;
+      width: 100%; height: 100%;
+      height: 100dvh;
+    }
+    .ios-scroll { height: 0; }
+    html.cinema .ios-scroll { height: 180vh; pointer-events: none; }
     #stars { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
     .cockpit {
       position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; pointer-events: none;
@@ -646,6 +660,7 @@
       </div>
     </div>
   </main>
+  <div class="ios-scroll" aria-hidden="true"></div>
   <script>
     (() => {
       const canvas = document.getElementById("stars");
@@ -1449,8 +1464,9 @@
           compassCenter = compassTape.parentElement.clientWidth / 2;
         }
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        w = window.innerWidth;
-        h = window.innerHeight;
+        const vv = window.visualViewport;
+        w = vv ? vv.width : window.innerWidth;
+        h = vv ? vv.height : window.innerHeight;
         canvas.width = Math.floor(w * dpr);
         canvas.height = Math.floor(h * dpr);
         canvas.style.width = w + "px";
@@ -2589,28 +2605,68 @@
       }
 
       const fsToggle = document.getElementById("fsToggle");
+      function fsActive() {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement || document.documentElement.classList.contains("cinema"));
+      }
       function paintFsButton() {
         if (!fsToggle) return;
-        const on = !!document.fullscreenElement;
+        const on = fsActive();
         fsToggle.classList.toggle("on", on);
         fsToggle.setAttribute("aria-pressed", on ? "true" : "false");
         fsToggle.innerHTML = on ? "✕<small>выйти</small>" : "⛶<small>экран</small>";
       }
-      async function toggleFullscreen() {
-        try {
-          if (document.fullscreenElement) await document.exitFullscreen();
-          else await document.documentElement.requestFullscreen();
-        } catch (_) { /* browser blocked fullscreen */ }
-        paintFsButton();
+      function enterCinema() {
+        document.documentElement.classList.add("cinema");
+        const hideBars = () => {
+          window.scrollTo(0, Math.max(window.innerHeight, document.body.scrollHeight));
+          resize();
+          paintFsButton();
+        };
+        hideBars();
+        setTimeout(hideBars, 80);
+      }
+      function exitCinema() {
+        document.documentElement.classList.remove("cinema");
+        window.scrollTo(0, 0);
+        resize();
+      }
+      function toggleFullscreen() {
+        const nativeOn = document.fullscreenElement || document.webkitFullscreenElement;
+        if (nativeOn || document.documentElement.classList.contains("cinema")) {
+          exitCinema();
+          const exit = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
+          if (nativeOn && exit) {
+            const done = exit.call(document);
+            if (done && done.catch) done.catch(() => {});
+          }
+          paintFsButton();
+          return;
+        }
+        const el = document.documentElement;
+        const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
+        if (req) {
+          try {
+            const done = req.call(el);
+            if (done && done.then) {
+              done.then(() => paintFsButton()).catch(() => enterCinema());
+            } else paintFsButton();
+            return;
+          } catch (_) { /* iPhone Safari has no element fullscreen */ }
+        }
+        enterCinema();
       }
       if (fsToggle) {
-        fsToggle.addEventListener("pointerdown", (e) => {
-          e.preventDefault();
+        fsToggle.addEventListener("click", (e) => {
           e.stopPropagation();
           toggleFullscreen();
         });
       }
       document.addEventListener("fullscreenchange", paintFsButton);
+      document.addEventListener("webkitfullscreenchange", paintFsButton);
+      if (window.visualViewport) {
+        visualViewport.addEventListener("resize", resize);
+        visualViewport.addEventListener("scroll", () => { if (document.documentElement.classList.contains("cinema")) resize(); });
+      }
 
       const ctrlToggle = document.getElementById("ctrlToggle");
       if (ctrlToggle) {
