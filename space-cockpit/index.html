@@ -499,6 +499,28 @@
       border-color: rgba(158, 193, 255, 0.55);
       color: #f2f7ff;
     }
+    .fs-toggle {
+      position: absolute;
+      top: calc(max(10px, env(safe-area-inset-top)) + 64px);
+      right: max(10px, env(safe-area-inset-right));
+      z-index: 10;
+      pointer-events: auto;
+      font-family: var(--display); font-size: 12px; letter-spacing: 0.14em;
+      padding: 10px 14px; border-radius: 12px; cursor: pointer;
+      border: 1px solid rgba(180,200,230,0.2);
+      background: rgba(6, 8, 12, 0.72); color: rgba(210,220,235,0.85);
+      backdrop-filter: blur(10px);
+      min-width: 56px; text-align: center;
+    }
+    .fs-toggle small {
+      display: block; margin-top: 3px; font-family: var(--mono);
+      font-size: 8px; letter-spacing: 0.04em; opacity: 0.65; text-transform: none;
+    }
+    .fs-toggle.on {
+      background: rgba(158, 193, 255, 0.22);
+      border-color: rgba(158, 193, 255, 0.55);
+      color: #f2f7ff;
+    }
     @media (max-width: 520px) {
       .cockpit { height: clamp(180px, 34vh, 230px); }
       .readout .v { font-size: 12px; }
@@ -525,6 +547,7 @@
     </div>
     <button type="button" class="ctrl-toggle" id="ctrlToggle" aria-pressed="false" aria-label="Режим управления">J<small>стик</small></button>
     <button type="button" class="view-toggle" id="viewToggle" aria-pressed="false" aria-label="Спрятать панель">B<small>панель</small></button>
+    <button type="button" class="fs-toggle" id="fsToggle" aria-pressed="false" aria-label="На весь экран">⛶<small>экран</small></button>
     <div class="cockpit">
       <div class="dash">
         <div class="screen nav">
@@ -2326,6 +2349,24 @@
         ArrowUp: "up", w: "up", W: "up",
         ArrowDown: "down", s: "down", S: "down",
       };
+      const codeMap = {
+        ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down",
+        KeyA: "left", KeyD: "right", KeyW: "up", KeyS: "down",
+      };
+      let spaceDown = false;
+      let spaceSticky = false;
+      function applyThrustHold() {
+        const hold = spaceDown || spaceSticky || thrustPointer;
+        if (hold && !thrusting && !braking && !thrustGate && gear !== "N") {
+          armAudioFromThrust();
+          thrusting = true;
+        } else if (!hold) {
+          thrusting = false;
+        } else if (hold) {
+          thrusting = true;
+        }
+        if (typeof setThrustVisual === "function") setThrustVisual();
+      }
 
       window.addEventListener("keydown", (e) => {
         if (e.code === "KeyJ" && !e.metaKey && !e.ctrlKey && !e.altKey) {
@@ -2346,11 +2387,14 @@
         if (e.code === "Digit3" || e.key === "3") { setStarLook("glow"); return; }
         if (e.code === "Space" || e.key === " ") {
           e.preventDefault();
+          spaceDown = true;
+          spaceSticky = false;
           if (braking || thrustGate) return;
           if (gear === "N") requestGear("D");
           if (!canThrust()) return;
           armAudioFromThrust();
           thrusting = true;
+          if (typeof setThrustVisual === "function") setThrustVisual();
           return;
         }
         if (e.code === "KeyR" || e.key === "r" || e.key === "R") {
@@ -2365,23 +2409,43 @@
           requestGear("N");
           return;
         }
-        const dir = keyMap[e.key];
+        const dir = codeMap[e.code] || keyMap[e.key];
         if (!dir) return;
         e.preventDefault();
         keys.add(dir);
         syncStickFromKeys();
+        if (spaceSticky || spaceDown) applyThrustHold();
       });
       window.addEventListener("keyup", (e) => {
         if (e.code === "Space" || e.key === " ") {
           e.preventDefault();
+          spaceDown = false;
+          if (keys.size > 0) {
+            // A turn key often sends a fake Space keyup. Keep thrust until the turn is released.
+            spaceSticky = true;
+            thrusting = true;
+            return;
+          }
+          spaceSticky = false;
           thrusting = false;
           thrustGate = false;
+          if (typeof setThrustVisual === "function") setThrustVisual();
           return;
         }
-        const dir = keyMap[e.key];
+        const dir = codeMap[e.code] || keyMap[e.key];
         if (!dir) return;
         keys.delete(dir);
         syncStickFromKeys();
+        if (keys.size === 0 && spaceSticky && !spaceDown) {
+          setTimeout(() => {
+            if (!spaceDown) {
+              spaceSticky = false;
+              thrusting = false;
+              thrustGate = false;
+              if (typeof setThrustVisual === "function") setThrustVisual();
+            }
+          }, 90);
+        }
       });
 
       // Power button — SPACE logo + POWER (replaces plain THRUST label)
@@ -2524,6 +2588,30 @@
         });
       }
 
+      const fsToggle = document.getElementById("fsToggle");
+      function paintFsButton() {
+        if (!fsToggle) return;
+        const on = !!document.fullscreenElement;
+        fsToggle.classList.toggle("on", on);
+        fsToggle.setAttribute("aria-pressed", on ? "true" : "false");
+        fsToggle.innerHTML = on ? "✕<small>выйти</small>" : "⛶<small>экран</small>";
+      }
+      async function toggleFullscreen() {
+        try {
+          if (document.fullscreenElement) await document.exitFullscreen();
+          else await document.documentElement.requestFullscreen();
+        } catch (_) { /* browser blocked fullscreen */ }
+        paintFsButton();
+      }
+      if (fsToggle) {
+        fsToggle.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleFullscreen();
+        });
+      }
+      document.addEventListener("fullscreenchange", paintFsButton);
+
       const ctrlToggle = document.getElementById("ctrlToggle");
       if (ctrlToggle) {
         ctrlToggle.addEventListener("pointerdown", (e) => {
@@ -2585,7 +2673,7 @@
       let dragging = false;
       stage.addEventListener("pointerdown", (e) => {
         if (stickMode) return; // analog stick owns steering on touch
-        if (e.target.closest(".pad, button, .audio-btn, .joy, .ctrl-toggle, .view-toggle, .star-looks, .gearbox, .galaxy-nav")) return;
+        if (e.target.closest(".pad, button, .audio-btn, .joy, .ctrl-toggle, .view-toggle, .fs-toggle, .star-looks, .gearbox, .galaxy-nav")) return;
         dragging = true;
         stage.setPointerCapture(e.pointerId);
       });
