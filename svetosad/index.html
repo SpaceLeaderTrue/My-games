@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#07110e" />
+  <title>Светосад</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%2307110e'/%3E%3Ccircle cx='32' cy='34' r='14' fill='%23ffd15c'/%3E%3Ccircle cx='27' cy='29' r='4' fill='%23fff6d8'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,560;1,7..72,520&family=Manrope:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #f4efe4;
+      --muted: #c5d2c6;
+      --lamp: #ffb15a;
+      --lamp-deep: #e08a3a;
+      --glass: rgba(8, 16, 12, 0.72);
+      --line: rgba(244, 239, 228, 0.16);
+      --danger: #ff8d7a;
+      --bg: #07110e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      height: 100dvh; background: var(--bg); color: var(--ink);
+      font-family: "Manrope", "Segoe UI", sans-serif;
+      overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+    }
+    #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; }
+    .hud, .sheet, .toast, .foot, .next, button {
+      -webkit-backdrop-filter: none; backdrop-filter: none;
+    }
+    .hud, .sheet, .toast {
+      position: fixed; z-index: 2; pointer-events: none;
+    }
+    .hud { left: 0; right: 0; top: 0; padding: max(14px, env(safe-area-inset-top)) 16px 0; }
+    header.top {
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+    }
+    h1 {
+      font-family: "Literata", Georgia, serif;
+      font-weight: 560; font-size: 28px; letter-spacing: -0.03em; line-height: 1;
+    }
+    #wish {
+      margin-top: 6px; color: var(--muted);
+      font-family: "Literata", Georgia, serif; font-style: italic; font-size: 15px;
+      min-height: 1.2em;
+    }
+    #wish.done { color: var(--lamp); }
+    .levels { display: flex; gap: 6px; margin-top: 8px; pointer-events: auto; }
+    .levels button {
+      padding: 6px 10px; font-size: 12px;
+      background: rgba(10, 18, 14, 0.55);
+    }
+    .levels button.on { border-color: var(--lamp); color: var(--lamp); }
+    .levels button.lock { opacity: 0.45; }
+    .scores { text-align: right; }
+    .scores b {
+      display: block; font-size: 28px; letter-spacing: -0.04em; font-variant-numeric: tabular-nums;
+    }
+    .scores small { color: var(--muted); font-size: 12px; letter-spacing: 0.04em; }
+    .foot {
+      position: fixed; z-index: 2; left: 0; right: 0; bottom: 0;
+      padding: 0 14px max(12px, env(safe-area-inset-bottom));
+      display: flex; align-items: flex-end; justify-content: space-between; gap: 10px;
+      pointer-events: none;
+    }
+    .next, .tools, .album { pointer-events: auto; }
+    .next {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(10, 18, 14, 0.94); border: 1px solid var(--line);
+      border-radius: 16px; padding: 8px 10px 8px 8px;
+    }
+    .next canvas { width: 46px; height: 46px; display: block; }
+    .next span { display: block; color: var(--muted); font-size: 11px; letter-spacing: 0.06em; text-transform: lowercase; }
+    .next strong { font-size: 14px; font-weight: 700; }
+    .album {
+      display: flex; gap: 5px; align-items: center; flex-wrap: wrap; justify-content: center;
+      max-width: min(420px, 52vw);
+    }
+    .pip {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 1px solid rgba(244,239,228,0.28);
+      background: rgba(255,255,255,0.04);
+    }
+    .pip.on { border-color: transparent; box-shadow: 0 0 8px currentColor; }
+    .tools { display: flex; gap: 6px; }
+    button {
+      pointer-events: auto; cursor: pointer; border: 1px solid var(--line);
+      background: rgba(10, 18, 14, 0.94); color: var(--ink);
+      font: 700 13px/1 "Manrope", sans-serif;
+      border-radius: 999px; padding: 10px 12px;
+    }
+    button.icon {
+      width: 42px; height: 42px; padding: 0;
+      display: grid; place-items: center;
+    }
+    button.icon svg { width: 22px; height: 22px; display: block; }
+    button.icon.on { border-color: var(--lamp); color: var(--lamp); }
+    button:hover { border-color: rgba(255,177,90,0.7); }
+    button.primary {
+      background: linear-gradient(180deg, #ffc27a, var(--lamp-deep));
+      color: #2a1408; border-color: transparent;
+      font-size: 16px; padding: 14px 18px; width: 100%;
+    }
+    .hint {
+      position: fixed; z-index: 2; left: 0; right: 0; bottom: 78px;
+      text-align: center; color: var(--muted); font-size: 12px; letter-spacing: 0.04em;
+      pointer-events: none;
+    }
+    @media (pointer: coarse) { .hint { display: none; } }
+    .sheet {
+      left: 10px; right: 10px; bottom: max(16px, env(safe-area-inset-bottom));
+      width: auto; max-width: 440px; margin: 0 auto;
+      background: rgba(10, 18, 14, 0.96);
+      border: 1px solid var(--line); border-radius: 22px;
+      padding: 16px 16px 14px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+    }
+    .sheet[hidden] { display: none !important; }
+    .sheet h2 {
+      font-family: "Literata", Georgia, serif; font-weight: 560; font-size: 30px;
+    }
+    .sheet p { color: var(--muted); margin: 4px 0 12px; font-size: 14px; }
+    .sheet .grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;
+    }
+    .sheet .grid div {
+      background: rgba(255,255,255,0.04); border-radius: 12px; padding: 8px;
+    }
+    .sheet .grid b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+    .sheet .grid span { color: var(--muted); font-size: 11px; }
+    #nextLevel { width: 100%; margin-top: 8px; }
+    .rank { margin: 0 0 12px; }
+    .rank form { display: flex; gap: 8px; }
+    .rank input {
+      flex: 1; min-width: 0; pointer-events: auto;
+      border-radius: 999px; border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06); color: var(--ink);
+      font: 700 14px/1 "Manrope", sans-serif; padding: 12px 14px;
+    }
+    .rank input::placeholder { color: var(--muted); }
+    .rank button { width: auto; white-space: nowrap; }
+    .rank ol {
+      list-style: none; margin-top: 10px; max-height: 148px; overflow: auto;
+      pointer-events: auto;
+    }
+    .rank li {
+      display: flex; justify-content: space-between; gap: 8px;
+      font-size: 13px; padding: 3px 0; color: var(--muted);
+    }
+    .rank li.me { color: var(--lamp); }
+    .rank .note { margin: 8px 0 0; font-size: 11px; color: var(--muted); }
+    .toast {
+      left: 0; right: 0; top: 92px; width: max-content; margin: 0 auto;
+      background: rgba(255, 209, 92, 0.95); color: #2a1408;
+      font-weight: 700; font-size: 14px; padding: 8px 14px; border-radius: 999px;
+      display: none; white-space: nowrap;
+    }
+    .toast.show { display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="view"></canvas>
+  <div class="hud">
+    <header class="top">
+      <div>
+        <h1>Светосад</h1>
+        <p id="wish">урони свет — пусть срастётся</p>
+        <div class="levels" id="levels"></div>
+      </div>
+      <div class="scores">
+        <b id="score">0</b>
+        <small id="best">рекорд 0</small>
+      </div>
+    </header>
+  </div>
+  <p class="hint">← → цель · пробел уронить · R ещё сад</p>
+  <div class="foot" id="foot">
+    <div class="next">
+      <canvas id="nextIcon" width="92" height="92"></canvas>
+      <div>
+        <span>дальше</span>
+        <strong id="nextName">Искра</strong>
+      </div>
+    </div>
+    <div class="album" id="album"></div>
+    <div class="tools">
+      <button type="button" class="icon" id="themeBtn" aria-label="Включить ночь"></button>
+      <button type="button" class="icon" id="muteBtn" aria-label="Выключить звук"></button>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div class="sheet" id="sheet" hidden>
+    <h2 id="overTitle">Сад зацвёл</h2>
+    <p id="overLine">ещё один — и станет теплее</p>
+    <div class="grid">
+      <div><b id="overScore">0</b><span>свет</span></div>
+      <div><b id="overCombo">×1</b><span>волна</span></div>
+      <div><b id="overBest">0</b><span>рекорд</span></div>
+    </div>
+    <div class="rank">
+      <form id="rankForm">
+        <input id="rankName" maxlength="16" placeholder="твоё имя" autocomplete="nickname" enterkeyhint="done">
+        <button type="submit" id="rankSave">В рейтинг</button>
+      </form>
+      <p class="note">один список на всех</p>
+      <ol id="rankList"></ol>
+    </div>
+    <button class="primary" type="button" id="again">Ещё раз</button>
+    <button type="button" id="nextLevel" hidden>Дальше</button>
+  </div>
+  <script>
+(() => {
+  const RADII = [16, 22, 29, 37, 46, 56, 68, 82, 98];
+  const SCORES = [2, 4, 8, 16, 32, 64, 128, 256, 512];
+  function ball(i, name, color, hi, lo, motif, face) {
+    return { name, baseR: RADII[i], score: SCORES[i], color, hi, lo, motif, face: !!face };
+  }
+  const LEVELS = [
+    {
+      name: "Сад",
+      sky: { sky0: "#07110e", sky1: "#143028", sky2: "#3a2a22", lamp: "#ffb15a", ink: "#f4efe4", glass: "rgba(186,220,196,0.16)" },
+      tiers: [
+        ball(0, "Искра", "#ffe29a", "#fff6d8", "#e0a63a", "spark"),
+        ball(1, "Семечко", "#d7b07a", "#f3e0bf", "#8d643c", "seed"),
+        ball(2, "Росток", "#8ed67a", "#e9ffd2", "#3c8c44", "sprout", true),
+        ball(3, "Бутон", "#ff9ebc", "#ffe4ec", "#d14e7c", "bud", true),
+        ball(4, "Цветок", "#ff6f91", "#ffd5e0", "#c23866", "flower", true),
+        ball(5, "Светлячок", "#dff56a", "#f7ffc4", "#86a824", "firefly", true),
+        ball(6, "Фонарь", "#ff8a3d", "#ffd2ad", "#cf5318", "lantern", true),
+        ball(7, "Луна", "#f4efe4", "#ffffff", "#b7b0a0", "moon"),
+        ball(8, "Солнце", "#ffd15c", "#fff3c4", "#ef9624", "sun")
+      ],
+      wishes: [
+        { text: "вырасти росток", test: (s) => s.maxTier >= 2, bonus: 20 },
+        { text: "вырасти цветок", test: (s) => s.maxTier >= 4, bonus: 40 },
+        { text: "сложи волну ×3", test: (s) => s.maxCombo >= 3, bonus: 40 },
+        { text: "зажечь фонарь", test: (s) => s.maxTier >= 6, bonus: 100 },
+        { text: "сложи волну ×5", test: (s) => s.maxCombo >= 5, bonus: 80 },
+        { text: "поднять луну", test: (s) => s.maxTier >= 7, bonus: 200 },
+        { text: "сложи волну ×7", test: (s) => s.maxCombo >= 7, bonus: 150 },
+        { text: "встретить солнце", test: (s) => s.maxTier >= 8, bonus: 400 }
+      ]
+    },
+    {
+      name: "Праздник",
+      sky: { sky0: "#1a1030", sky1: "#4a2068", sky2: "#e07aa8", lamp: "#ffd0f0", ink: "#fff6fb", glass: "rgba(255,210,240,0.16)" },
+      tiers: [
+        ball(0, "Блёстка", "#ffe9a8", "#fff8dc", "#e0b04a", "glitter"),
+        ball(1, "Конфета", "#ff8eb8", "#ffd6e6", "#d45386", "candy"),
+        ball(2, "Печенье", "#e6b56a", "#fff0d0", "#a56b32", "cookie", true),
+        ball(3, "Пончик", "#ffb3d0", "#ffe4f0", "#e06a9a", "donut", true),
+        ball(4, "Кекс", "#ffd0e8", "#fff5fb", "#d46aa0", "cupcake", true),
+        ball(5, "Мороженое", "#c8f4ff", "#ffffff", "#6ec4e0", "ice", true),
+        ball(6, "Торт", "#ffd36a", "#fff3c4", "#e09030", "cake", true),
+        ball(7, "Фейерверк", "#ff7ad9", "#ffe0f6", "#c43d9a", "firework"),
+        ball(8, "Радуга", "#fff6d0", "#ffffff", "#f0a0c8", "rainbow")
+      ],
+      wishes: [
+        { text: "испеки печенье", test: (s) => s.maxTier >= 2, bonus: 20 },
+        { text: "собери кекс", test: (s) => s.maxTier >= 4, bonus: 40 },
+        { text: "сложи волну ×3", test: (s) => s.maxCombo >= 3, bonus: 40 },
+        { text: "вырасти торт", test: (s) => s.maxTier >= 6, bonus: 100 },
+        { text: "сложи волну ×5", test: (s) => s.maxCombo >= 5, bonus: 80 },
+        { text: "запусти фейерверк", test: (s) => s.maxTier >= 7, bonus: 200 },
+        { text: "сложи волну ×7", test: (s) => s.maxCombo >= 7, bonus: 150 },
+        { text: "собери радугу", test: (s) => s.maxTier >= 8, bonus: 400 }
+      ]
+    },
+    {
+      name: "Море",
+      sky: { sky0: "#062033", sky1: "#0c5870", sky2: "#f2b56b", lamp: "#9ee7ff", ink: "#f3fbff", glass: "rgba(180,230,255,0.16)" },
+      tiers: [
+        ball(0, "Пузырёк", "#d8f6ff", "#ffffff", "#7ec8e0", "bubble"),
+        ball(1, "Ракушка", "#ffd0b0", "#fff0e4", "#e09068", "shell"),
+        ball(2, "Рыбка", "#ffb15a", "#ffe6c0", "#e07030", "fish", true),
+        ball(3, "Медуза", "#e8c8ff", "#f8eaff", "#b07ad4", "jelly", true),
+        ball(4, "Черепашка", "#9ed67a", "#e6ffd0", "#4e8c44", "turtle", true),
+        ball(5, "Дельфин", "#8ec8f0", "#e6f6ff", "#3a78b0", "dolphin", true),
+        ball(6, "Кит", "#7aa8e0", "#e4f0ff", "#3a5890", "whale", true),
+        ball(7, "Жемчужина", "#f6f1e8", "#ffffff", "#d0c4b0", "pearl"),
+        ball(8, "Остров", "#ffe08a", "#fff6d0", "#3e9a62", "island")
+      ],
+      wishes: [
+        { text: "вырасти рыбку", test: (s) => s.maxTier >= 2, bonus: 20 },
+        { text: "встреть черепашку", test: (s) => s.maxTier >= 4, bonus: 40 },
+        { text: "сложи волну ×3", test: (s) => s.maxCombo >= 3, bonus: 40 },
+        { text: "позвать кита", test: (s) => s.maxTier >= 6, bonus: 100 },
+        { text: "сложи волну ×5", test: (s) => s.maxCombo >= 5, bonus: 80 },
+        { text: "найти жемчужину", test: (s) => s.maxTier >= 7, bonus: 200 },
+        { text: "сложи волну ×7", test: (s) => s.maxCombo >= 7, bonus: 150 },
+        { text: "открыть остров", test: (s) => s.maxTier >= 8, bonus: 400 }
+      ]
+    }
+  ];
+  const NOTES = [262, 330, 392, 523, 659, 784, 1046, 1319, 1568];
+  let TIERS = LEVELS[0].tiers;
+  let WISHES = LEVELS[0].wishes;
+  const THEMES = {
+    night: { name: "ночь", sky0: "#07110e", sky1: "#143028", sky2: "#3a2a22", lamp: "#ffb15a", glass: "rgba(186,220,196,0.16)", ink: "#f4efe4" },
+    honey: { name: "мёд", sky0: "#2a160e", sky1: "#6a3418", sky2: "#e7a15a", lamp: "#ffe0a0", glass: "rgba(255,214,160,0.2)", ink: "#fff6e8" },
+    dawn: { name: "рассвет", sky0: "#f3c7a4", sky1: "#f7d9b8", sky2: "#fff1dc", lamp: "#e07a4c", glass: "rgba(255,255,255,0.35)", ink: "#3a241c" }
+  };
+  const SAVE_KEY = "svetosad-v1";
+
+  const canvas = document.getElementById("view");
+  const ctx = canvas.getContext("2d");
+  const wishEl = document.getElementById("wish");
+  const scoreEl = document.getElementById("score");
+  const bestEl = document.getElementById("best");
+  const albumEl = document.getElementById("album");
+  const nextNameEl = document.getElementById("nextName");
+  const nextIcon = document.getElementById("nextIcon");
+  const nextCtx = nextIcon.getContext("2d");
+  const sheet = document.getElementById("sheet");
+  const toastEl = document.getElementById("toast");
+  const themeBtn = document.getElementById("themeBtn");
+  const muteBtn = document.getElementById("muteBtn");
+
+  const save = loadSave();
+  const S = {
+    bodies: [],
+    particles: [],
+    floaters: [],
+    score: 0,
+    shownScore: 0,
+    combo: 0,
+    comboLeft: 0,
+    maxCombo: 1,
+    maxTier: 0,
+    merges: 0,
+    wishCursor: save.mastery,
+    over: false,
+    overLeft: 0,
+    danger: 0,
+    warmth: 0,
+    aimX: 0,
+    aimReady: false,
+    hold: 0,
+    next: 0,
+    bag: [],
+    canDrop: true,
+    fresh: null,
+    twoSuns: false,
+    won: false,
+    winLeft: 0,
+    shake: 0,
+    slow: 0,
+    time: 0,
+    scale: 1,
+    jar: { x: 0, y: 0, w: 0, h: 0, l: 0, r: 0, t: 0, b: 0, danger: 0 },
+    motes: Array.from({ length: 28 }, () => ({
+      x: Math.random(), y: Math.random(),
+      s: 0.6 + Math.random() * 1.8,
+      p: Math.random() * Math.PI * 2,
+      v: 0.15 + Math.random() * 0.35
+    }))
+  };
+
+  let audioCtx = null;
+  let toastTimer = 0;
+  let pointerId = null;
+
+  function emptyBook() { return RADII.map(() => 0); }
+  function loadSave() {
+    const blank = { best: 0, bests: [0, 0, 0], discovers: emptyBook(), books: [emptyBook(), emptyBook(), emptyBook()], merges: 0, gardens: 0, suns: 0, lastDay: "", streak: 0, theme: "night", night: false, muted: false, mastery: 0, masteries: [0, 0, 0], level: 0, unlocked: 0, cleared: [0, 0, 0], board: [], playerName: "" };
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      const data = raw ? Object.assign(blank, JSON.parse(raw)) : blank;
+      if (!data.books || data.books.length < 3) data.books = [emptyBook(), emptyBook(), emptyBook()];
+      if (Array.isArray(data.discovers)) data.books[0] = data.books[0].map((n, i) => n || data.discovers[i] || 0);
+      if (!data.bests) data.bests = [data.best || 0, 0, 0];
+      if (!data.masteries) data.masteries = [data.mastery || 0, 0, 0];
+      if (!Array.isArray(data.board)) data.board = [];
+      data.level = Math.min(2, data.level || 0);
+      data.unlocked = Math.max(data.unlocked || 0, data.level);
+      return data;
+    } catch (e) {
+      return blank;
+    }
+  }
+  function applyLevel(index) {
+    save.level = index;
+    TIERS = LEVELS[index].tiers;
+    WISHES = LEVELS[index].wishes;
+  }
+  function persist() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
+  }
+  function dayKey(d) {
+    return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+  }
+  function touchStreak() {
+    const now = new Date();
+    const today = dayKey(now);
+    if (save.lastDay === today) return;
+    const y = new Date(now);
+    y.setDate(y.getDate() - 1);
+    save.streak = save.lastDay === dayKey(y) ? save.streak + 1 : 1;
+    save.lastDay = today;
+    persist();
+  }
+
+  function radius(tier) { return TIERS[tier].baseR * S.scale; }
+
+  function refillBag() {
+    const batch = [0, 0, 0, 1, 1, 1, 2, 2, 3];
+    for (let i = batch.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      const tmp = batch[i]; batch[i] = batch[j]; batch[j] = tmp;
+    }
+    S.bag.push(...batch);
+  }
+  function pullTier() {
+    if (S.bag.length === 0) refillBag();
+    return S.bag.pop();
+  }
+
+  function viewSize() {
+    const vv = window.visualViewport;
+    return {
+      w: vv && vv.width ? vv.width : innerWidth,
+      h: vv && vv.height ? vv.height : innerHeight
+    };
+  }
+  function layout() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const size = viewSize();
+    canvas.width = Math.floor(size.w * dpr);
+    canvas.height = Math.floor(size.h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const top = 78;
+    const bottom = document.getElementById("foot").getBoundingClientRect().height + 10;
+    const availH = Math.max(220, size.h - top - bottom);
+    const availW = size.w - 24;
+    let w = Math.min(availW, 440, availH * 0.68);
+    let h = Math.min(availH, w * 1.58);
+    w = Math.min(w, h / 1.35);
+    const x = (size.w - w) / 2;
+    const y = top + (availH - h) / 2;
+    const inset = Math.max(10, w * 0.035);
+    S.jar = {
+      x, y, w, h,
+      l: x + inset, r: x + w - inset,
+      t: y + inset * 0.4, b: y + h - inset,
+      danger: 0
+    };
+    const innerW = S.jar.r - S.jar.l;
+    const innerH = S.jar.b - S.jar.t;
+    S.scale = innerW / 320;
+    S.jar.danger = S.jar.t + innerH * 0.2;
+    if (!S.aimReady) S.aimX = (S.jar.l + S.jar.r) / 2;
+    clampAim();
+    for (const b of S.bodies) b.r = radius(b.tier);
+  }
+  function clampAim() {
+    const r = radius(S.hold);
+    S.aimX = Math.max(S.jar.l + r, Math.min(S.jar.r - r, S.aimX));
+  }
+
+  function spawn(tier, x, y, opts) {
+    const b = {
+      tier, x, y, r: radius(tier),
+      vx: 0, vy: 0, w: (Math.random() - 0.5) * 1.2, angle: Math.random() * 6,
+      alive: true, touched: false, age: 0, pop: opts && opts.pop ? 1 : 0,
+      phase: Math.random() * 10, blink: Math.random() * 8
+    };
+    S.bodies.push(b);
+    return b;
+  }
+
+  function ensureAudio() {
+    if (save.muted) return null;
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+  function tone(freq, dur, gain, type, delay) {
+    const ac = ensureAudio();
+    if (!ac) return;
+    const t0 = ac.currentTime + (delay || 0);
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    const f = ac.createBiquadFilter();
+    f.type = "lowpass";
+    f.frequency.value = 2200;
+    o.type = type || "triangle";
+    o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.018);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(f); f.connect(g); g.connect(ac.destination);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  function playMerge(tier) {
+    tone(NOTES[tier], 0.28, 0.08, "triangle");
+    tone(NOTES[Math.min(8, tier)] * 1.5, 0.22, 0.03, "sine", 0.02);
+    if (tier >= 7) {
+      tone(NOTES[4], 0.3, 0.05, "triangle", 0.08);
+      tone(NOTES[6], 0.34, 0.05, "triangle", 0.16);
+    }
+  }
+  function playDrop() { tone(180, 0.09, 0.05, "sine"); }
+  function buzz(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
+
+  function burst(x, y, color, n, speed) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const v = speed * (0.35 + Math.random());
+      S.particles.push({
+        x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.25,
+        life: 0.7 + Math.random() * 0.5, max: 1, color, s: 1.5 + Math.random() * 2.4
+      });
+    }
+  }
+  function floater(x, y, text, color) {
+    S.floaters.push({ x, y, text, color: color || "#fff6d8", life: 1.15 });
+  }
+  function toast(text) {
+    toastEl.textContent = text;
+    toastEl.classList.add("show");
+    toastTimer = 2.1;
+  }
+
+  function currentWish() {
+    if (S.wishCursor < WISHES.length) return WISHES[S.wishCursor];
+    const need = 8 + (S.wishCursor - WISHES.length) * 6;
+    return {
+      text: "слить ещё " + need + " раз",
+      test: (s) => s.merges >= need,
+      bonus: 25 + (S.wishCursor - WISHES.length) * 10,
+      repeat: true,
+      need
+    };
+  }
+  function checkWish() {
+    const wish = currentWish();
+    const snap = { maxTier: S.maxTier, maxCombo: S.maxCombo, merges: wish.repeat ? S.merges : S.merges };
+    if (!wish.test(snap)) return;
+    S.score += wish.bonus;
+    floater(S.jar.x + S.jar.w / 2, S.jar.danger + 20, "желание +" + wish.bonus, "#ffd15c");
+    toast(wish.text);
+    tone(523, 0.18, 0.06, "triangle");
+    tone(784, 0.24, 0.05, "sine", 0.09);
+    if (!wish.repeat) {
+      save.mastery = Math.max(save.mastery, S.wishCursor + 1);
+      save.masteries[save.level] = Math.max(save.masteries[save.level] || 0, S.wishCursor + 1);
+    }
+    S.wishCursor += 1;
+    if (wish.repeat) S.merges = 0;
+    persist();
+    wishEl.classList.add("done");
+  }
+
+  function discover(tier) {
+    const book = save.books[save.level];
+    if (!book[tier]) {
+      book[tier] = 1;
+      save.discovers = save.books[0];
+      toast("гербарий: " + TIERS[tier].name);
+      if (tier >= 7 && save.theme === "night") {
+        /* dawn stays locked until the sun exists, honey until a few gardens */
+      }
+      persist();
+      paintAlbum();
+    }
+  }
+
+  function mergePair(a, b) {
+    if (a.tier >= TIERS.length - 1) return;
+    const tier = a.tier + 1;
+    const x = (a.x + b.x) / 2;
+    const y = (a.y + b.y) / 2;
+    a.alive = false;
+    b.alive = false;
+    const baby = spawn(tier, x, y, { pop: true });
+    baby.vx = (a.vx + b.vx) * 0.2;
+    baby.vy = Math.min((a.vy + b.vy) * 0.15, -90 * S.scale);
+    if (y - baby.r < S.jar.danger + 8) baby.vy *= 0.15;
+    baby.touched = true;
+    const chain = S.comboLeft > 0 ? S.combo + 1 : 1;
+    S.combo = chain;
+    S.comboLeft = 1.15;
+    if (chain > S.maxCombo) S.maxCombo = chain;
+    const gained = TIERS[tier].score * chain;
+    S.score += gained;
+    S.merges += 1;
+    save.merges += 1;
+    if (tier > S.maxTier) S.maxTier = tier;
+    S.warmth = Math.max(S.warmth, tier / 8);
+    discover(tier);
+    playMerge(tier);
+    buzz(tier >= 6 ? 18 : 8);
+    burst(x, y, TIERS[tier].color, 10 + tier * 2, 90 * S.scale + tier * 8);
+    const label = tier >= 6 ? TIERS[tier].name : "+" + gained;
+    floater(x, y - baby.r, chain >= 2 ? label + "  ×" + chain : label, TIERS[tier].hi);
+    if (chain >= 3) S.slow = 0.45;
+    if (tier >= 6) S.shake = Math.min(8, 2 + tier * 0.4);
+    if (tier === 8) {
+      save.suns += 1;
+      burst(x, y, "#fff6d8", 36, 180 * S.scale);
+      tone(880, 0.25, 0.06, "triangle", 0.22);
+      if (!S.won) S.winLeft = 1.1;
+    }
+    if (S.score > levelBest()) {
+      const first = levelBest() > 0 && S.shownScore <= levelBest();
+      save.bests[save.level] = S.score;
+      save.best = Math.max(save.best, S.score);
+      if (first) toast("новый рекорд");
+    }
+    checkWish();
+    const suns = S.bodies.filter((p) => p.alive && p.tier === 8).length;
+    if (suns >= 2 && !S.twoSuns) {
+      S.twoSuns = true;
+      S.score += 1000;
+      toast("два солнца");
+      burst(x, y, "#ffd15c", 48, 220 * S.scale);
+    }
+  }
+
+  function physics(dt) {
+    const g = 2100 * S.scale;
+    const jar = S.jar;
+    const list = S.bodies.filter((b) => b.alive);
+    for (const b of list) {
+      b.age += dt;
+      b.vy += g * dt;
+      const maxV = 1600 * S.scale;
+      b.vy = Math.max(-maxV, Math.min(maxV, b.vy));
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.angle += b.w * dt;
+      b.vx *= Math.pow(0.15, dt);
+      b.w *= Math.pow(0.2, dt);
+      if (b.pop > 0) b.pop = Math.max(0, b.pop - dt * 2.4);
+    }
+    const iters = 8;
+    const pairs = [];
+    for (let k = 0; k < iters; k++) {
+      for (let i = 0; i < list.length; i++) {
+        const a = list[i];
+        if (a.x - a.r < jar.l) { a.x = jar.l + a.r; if (a.vx < 0) a.vx *= -0.12; a.touched = true; }
+        if (a.x + a.r > jar.r) { a.x = jar.r - a.r; if (a.vx > 0) a.vx *= -0.12; a.touched = true; }
+        if (a.y + a.r > jar.b) { a.y = jar.b - a.r; if (a.vy > 0) a.vy *= -0.1; a.vx *= 0.85; a.touched = true; }
+        for (let j = i + 1; j < list.length; j++) {
+          const b = list[j];
+          let dx = b.x - a.x;
+          let dy = b.y - a.y;
+          let dist = Math.hypot(dx, dy);
+          const min = a.r + b.r;
+          if (dist < 0.0001) { dx = 0.01; dy = 0; dist = 0.01; }
+          if (dist >= min) continue;
+          const overlap = Math.min(min - dist, 8 * S.scale);
+          const nx = dx / dist;
+          const ny = dy / dist;
+          const ma = a.r * a.r;
+          const mb = b.r * b.r;
+          const inv = 1 / (ma + mb);
+          a.x -= nx * overlap * (mb * inv);
+          a.y -= ny * overlap * (mb * inv);
+          b.x += nx * overlap * (ma * inv);
+          b.y += ny * overlap * (ma * inv);
+          if (k === iters - 1) {
+            const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+            if (rel < 0) {
+              const e = 0.08;
+              const jimp = -(1 + e) * rel / (1 / ma + 1 / mb);
+              a.vx -= (jimp * nx) / ma;
+              a.vy -= (jimp * ny) / ma;
+              b.vx += (jimp * nx) / mb;
+              b.vy += (jimp * ny) / mb;
+              a.w += rel * 0.01;
+              b.w -= rel * 0.01;
+            }
+            a.touched = true;
+            b.touched = true;
+          }
+        }
+      }
+    }
+    const slop = 1.5 * S.scale;
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i];
+      if (!a.alive) continue;
+      for (let j = i + 1; j < list.length; j++) {
+        const b = list[j];
+        if (!b.alive || a.tier !== b.tier || a.tier >= TIERS.length - 1) continue;
+        const dist = Math.hypot(b.x - a.x, b.y - a.y);
+        if (dist <= a.r + b.r + slop) pairs.push([a, b, dist]);
+      }
+    }
+    const used = new Set();
+    pairs.sort((p, q) => q[0].tier - p[0].tier);
+    for (const [a, b] of pairs) {
+      if (!a.alive || !b.alive) continue;
+      if (a.tier !== b.tier) continue;
+      if (used.has(a) || used.has(b)) continue;
+      used.add(a); used.add(b);
+      mergePair(a, b);
+    }
+    S.bodies = S.bodies.filter((b) => b.alive);
+
+    let hot = false;
+    for (const b of S.bodies) {
+      if (!b.touched || b.age < 0.35) continue;
+      if (b.y - b.r < jar.danger) hot = true;
+    }
+    if (!S.over) {
+      S.danger += ((hot ? 1 : 0) - S.danger) * Math.min(1, dt * 6);
+    }
+    if (S.fresh && (S.fresh.touched || S.fresh.age > 0.7 || !S.fresh.alive)) {
+      S.fresh = null;
+      S.canDrop = true;
+    }
+  }
+
+  function drop() {
+    if (S.over || !S.canDrop) return;
+    clampAim();
+    const y = S.jar.t + radius(S.hold) + 2;
+    const b = spawn(S.hold, S.aimX, y);
+    b.vy = 40 * S.scale;
+    S.fresh = b;
+    S.canDrop = false;
+    discover(S.hold);
+    if (S.hold > S.maxTier) S.maxTier = S.hold;
+    playDrop();
+    S.hold = S.next;
+    S.next = pullTier();
+    syncNext();
+    checkWish();
+  }
+
+  function endRun() {
+    if (S.over) return;
+    S.over = true;
+    S.canDrop = false;
+    save.gardens += 1;
+    const beat = S.score > levelBest() && S.score > 0;
+    if (beat) {
+      save.bests[save.level] = S.score;
+      save.best = Math.max(save.best, S.score);
+    }
+    persist();
+    const level = LEVELS[save.level];
+    const won = S.won;
+    document.getElementById("overTitle").textContent = won ? level.name + " пройден" : (beat ? "Новый рекорд" : level.name + " зацвёл");
+    const biggest = TIERS[S.maxTier].name.toLowerCase();
+    const next = LEVELS[save.level + 1];
+    document.getElementById("overLine").textContent = won && next ? "открыт уровень «" + next.name + "»" : "высший свет — " + biggest;
+    const again = document.getElementById("again");
+    const nextBtn = document.getElementById("nextLevel");
+    again.textContent = won ? "Ещё раз" : "Ещё раз";
+    nextBtn.hidden = !(won && next);
+    if (next) nextBtn.textContent = "Открыть «" + next.name + "»";
+    document.getElementById("overScore").textContent = fmt(S.score);
+    document.getElementById("overCombo").textContent = "×" + S.maxCombo;
+    document.getElementById("overBest").textContent = fmt(levelBest());
+    const nameInput = document.getElementById("rankName");
+    nameInput.value = save.playerName || "";
+    document.getElementById("rankSave").disabled = false;
+    refreshBoard();
+    sheet.hidden = false;
+    if (!won) {
+      tone(659, 0.22, 0.05, "sine");
+      tone(523, 0.28, 0.04, "triangle", 0.12);
+      tone(392, 0.4, 0.04, "triangle", 0.24);
+    }
+  }
+
+  function resetRun() {
+    S.bodies = [];
+    S.particles = [];
+    S.floaters = [];
+    S.score = 0;
+    S.shownScore = 0;
+    S.combo = 0;
+    S.comboLeft = 0;
+    S.maxCombo = 1;
+    S.maxTier = 0;
+    S.merges = 0;
+    S.over = false;
+    S.overLeft = 0;
+    S.danger = 0;
+    S.warmth = 0;
+    S.twoSuns = false;
+    S.won = false;
+    S.winLeft = 0;
+    S.shake = 0;
+    S.slow = 0;
+    S.canDrop = true;
+    S.fresh = null;
+    S.bag = [];
+    S.wishCursor = save.masteries[save.level] || 0;
+    S.hold = pullTier();
+    S.next = pullTier();
+    sheet.hidden = true;
+    wishEl.classList.remove("done");
+    syncNext();
+    paintAlbum();
+    tone(392, 0.12, 0.04, "triangle");
+  }
+
+  const BOARD = "https://keyvalue.immanuel.co/api/KeyVal";
+  const BOARD_APP = "b77t15sw";
+  const BOARD_SLOT = "svotosad";
+  function fmt(n) { return Math.floor(n).toLocaleString("ru-RU"); }
+  function cleanName(raw) {
+    return String(raw || "").replace(/[,;:]/g, "").replace(/\s+/g, " ").trim().slice(0, 16);
+  }
+  function packName(name) {
+    return btoa(unescape(encodeURIComponent(name))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+  function unpackName(code) {
+    try {
+      const pad = code + "===".slice((code.length + 3) % 4);
+      return cleanName(decodeURIComponent(escape(atob(pad.replace(/-/g, "+").replace(/_/g, "/")))));
+    } catch (e) {
+      return "";
+    }
+  }
+  function packBoard(rows) {
+    const packed = rows.slice(0, 20).map((row) => packName(row.name) + "," + Math.floor(row.score) + "," + (row.level | 0)).join(";");
+    return packed || "-";
+  }
+  function parseBoard(text) {
+    if (!text || text === "-") return [];
+    return String(text).split(";").map((part) => {
+      const bits = part.split(",");
+      if (bits.length < 3) return null;
+      const name = unpackName(bits[0]);
+      const score = Number(bits[1]);
+      const level = Number(bits[2]);
+      if (!name || !Number.isFinite(score) || score <= 0) return null;
+      return { name, score, level: level >= 0 && level < LEVELS.length ? level : 0 };
+    }).filter(Boolean);
+  }
+  function mergeBoards(lists) {
+    const map = new Map();
+    lists.flat().forEach((row) => {
+      if (!row || !row.name || !(row.score > 0)) return;
+      const key = row.name.toLowerCase();
+      const prev = map.get(key);
+      if (!prev || row.score > prev.score) map.set(key, { name: row.name, score: row.score, level: row.level | 0 });
+    });
+    return [...map.values()].sort((a, b) => b.score - a.score).slice(0, 20);
+  }
+  async function pullBoard() {
+    const res = await fetch(BOARD + "/GetValue/" + BOARD_APP + "/" + BOARD_SLOT);
+    if (!res.ok) throw new Error("board");
+    const text = await res.json();
+    return parseBoard(typeof text === "string" ? text : "");
+  }
+  async function pushBoard(rows) {
+    const packed = packBoard(rows);
+    const res = await fetch(BOARD + "/UpdateValue/" + BOARD_APP + "/" + BOARD_SLOT + "/" + encodeURIComponent(packed), {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: packed
+    });
+    if (!res.ok) throw new Error("board");
+  }
+  async function refreshBoard() {
+    try {
+      save.board = await pullBoard();
+      persist();
+    } catch (e) {}
+    renderBoard("");
+  }
+  function renderBoard(highlight) {
+    const list = document.getElementById("rankList");
+    const rows = save.board.slice().sort((a, b) => b.score - a.score).slice(0, 10);
+    list.innerHTML = "";
+    if (!rows.length) {
+      const empty = document.createElement("li");
+      empty.textContent = "пока пусто — впиши имя";
+      list.appendChild(empty);
+      return;
+    }
+    rows.forEach((row, i) => {
+      const li = document.createElement("li");
+      if (highlight && row.name === highlight) li.className = "me";
+      const who = document.createElement("span");
+      who.textContent = (i + 1) + ". " + row.name;
+      const pts = document.createElement("span");
+      pts.textContent = fmt(row.score) + " · " + (LEVELS[row.level] ? LEVELS[row.level].name : "");
+      li.appendChild(who);
+      li.appendChild(pts);
+      list.appendChild(li);
+    });
+  }
+  async function saveRank(raw) {
+    const name = cleanName(raw);
+    if (!name) {
+      toast("нужно имя");
+      return;
+    }
+    if (S.score <= 0) {
+      toast("сначала набери свет");
+      return;
+    }
+    const button = document.getElementById("rankSave");
+    button.disabled = true;
+    try {
+      const remote = await pullBoard();
+      const mine = { name, score: S.score, level: save.level };
+      const higher = remote.find((row) => row.name.toLowerCase() === name.toLowerCase() && row.score >= S.score);
+      if (higher) {
+        save.board = remote;
+        save.playerName = name;
+        persist();
+        renderBoard(higher.name);
+        toast("твой максимум уже " + fmt(higher.score));
+        return;
+      }
+      const merged = mergeBoards([remote, [mine]]);
+      await pushBoard(merged);
+      const fresh = await pullBoard();
+      save.board = fresh.length ? fresh : merged;
+      save.playerName = name;
+      persist();
+      renderBoard(name);
+      toast("ты в общем рейтинге");
+    } catch (e) {
+      toast("рейтинг недоступен");
+    } finally {
+      button.disabled = false;
+    }
+  }
+  function levelBest() { return save.bests[save.level] || 0; }
+  function winLevel() {
+    if (S.won || S.over) return;
+    S.won = true;
+    save.cleared[save.level] = 1;
+    if (save.level < LEVELS.length - 1) save.unlocked = Math.max(save.unlocked, save.level + 1);
+    endRun();
+    tone(523, 0.16, 0.06, "triangle", 0.05);
+    tone(659, 0.2, 0.06, "triangle", 0.14);
+    tone(784, 0.28, 0.05, "sine", 0.24);
+  }
+  function paintLevels() {
+    const box = document.getElementById("levels");
+    if (box.childElementCount === LEVELS.length) {
+      LEVELS.forEach((lvl, i) => {
+        const btn = box.children[i];
+        btn.className = (i === save.level ? "on" : "") + (i > save.unlocked ? " lock" : "");
+        btn.textContent = lvl.name;
+      });
+      return;
+    }
+    box.innerHTML = "";
+    LEVELS.forEach((lvl, i) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = lvl.name;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (i > save.unlocked) {
+          toast("сначала пройди «" + LEVELS[i - 1].name + "»");
+          return;
+        }
+        if (i === save.level && !S.over) return;
+        applyLevel(i);
+        persist();
+        resetRun();
+      });
+      box.appendChild(btn);
+    });
+  }
+
+  function paintAlbum() {
+    albumEl.innerHTML = "";
+    const book = save.books[save.level];
+    TIERS.forEach((t, i) => {
+      const pip = document.createElement("i");
+      pip.className = "pip" + (book[i] ? " on" : "");
+      pip.title = book[i] ? t.name : "ещё не встречено";
+      if (book[i]) {
+        pip.style.background = t.color;
+        pip.style.color = t.color;
+      }
+      albumEl.appendChild(pip);
+    });
+  }
+  const SUN_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.1 5.1l1.6 1.6M17.3 17.3l1.6 1.6M18.9 5.1l-1.6 1.6M6.7 17.3l-1.6 1.6"/></g></svg>';
+  const MOON_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.5 3.2a8.2 8.2 0 1 0 5.3 14.2A8.6 8.6 0 0 1 15.5 3.2z"/></svg>';
+  const SOUND_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 9h3.2L12 5.2v13.6L7.2 15H4z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M16 9.2a3.6 3.6 0 0 1 0 5.6M18.4 7a6.2 6.2 0 0 1 0 10"/></svg>';
+  const MUTE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 9h3.2L12 5.2v13.6L7.2 15H4z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M16 9.5l5 5M21 9.5l-5 5"/></svg>';
+  function mixHex(a, b, t) {
+    const pa = hex(a), pb = hex(b);
+    const ch = (i) => Math.round(pa[i] + (pb[i] - pa[i]) * t).toString(16).padStart(2, "0");
+    return "#" + ch(0) + ch(1) + ch(2);
+  }
+  function look() {
+    const base = LEVELS[save.level].sky;
+    if (!save.night) {
+      return {
+        sky0: mixHex(base.sky0, "#f8e7c8", 0.34),
+        sky1: mixHex(base.sky1, "#ffd8ae", 0.2),
+        sky2: base.sky2,
+        lamp: base.lamp,
+        ink: base.ink,
+        glass: base.glass
+      };
+    }
+    return {
+      sky0: mixHex(base.sky0, "#02040a", 0.82),
+      sky1: mixHex(base.sky1, "#0a1224", 0.74),
+      sky2: mixHex(base.sky2, "#141c30", 0.66),
+      lamp: "#d5e2ff",
+      ink: "#f4efe4",
+      glass: "rgba(180,200,230,0.14)"
+    };
+  }
+  function paintToggles() {
+    const night = save.night ? "1" : "0";
+    if (themeBtn.dataset.on !== night) {
+      themeBtn.dataset.on = night;
+      themeBtn.classList.toggle("on", !!save.night);
+      themeBtn.innerHTML = save.night ? MOON_ICON : SUN_ICON;
+      themeBtn.setAttribute("aria-label", save.night ? "Выключить ночь" : "Включить ночь");
+    }
+    const quiet = save.muted ? "1" : "0";
+    if (muteBtn.dataset.on !== quiet) {
+      muteBtn.dataset.on = quiet;
+      muteBtn.classList.toggle("on", !!save.muted);
+      muteBtn.innerHTML = save.muted ? MUTE_ICON : SOUND_ICON;
+      muteBtn.setAttribute("aria-label", save.muted ? "Включить звук" : "Выключить звук");
+    }
+  }
+  function syncNext() {
+    nextNameEl.textContent = TIERS[S.next].name;
+    const c = nextCtx;
+    c.clearRect(0, 0, 92, 92);
+    drawCreature(c, S.next, 46, 50, 28, S.time, 0);
+  }
+  function syncHud() {
+    S.shownScore += (S.score - S.shownScore) * 0.12;
+    if (Math.abs(S.score - S.shownScore) < 0.6) S.shownScore = S.score;
+    scoreEl.textContent = fmt(S.shownScore);
+    const streak = save.streak > 1 ? " · " + save.streak + " дн." : "";
+    bestEl.textContent = "рекорд " + fmt(levelBest()) + streak;
+    const wish = currentWish();
+    wishEl.textContent = wish.text;
+    const theme = look();
+    paintLevels();
+    paintToggles();
+    document.getElementById("foot").style.visibility = S.over ? "hidden" : "visible";
+    document.documentElement.style.setProperty("--ink", theme.ink);
+    document.documentElement.style.setProperty("--lamp", theme.lamp);
+    document.documentElement.style.setProperty("--bg", theme.sky0);
+  }
+
+  function mix(a, b, t) {
+    const pa = hex(a), pb = hex(b);
+    const ch = (i) => Math.round(pa[i] + (pb[i] - pa[i]) * t);
+    return "rgb(" + ch(0) + "," + ch(1) + "," + ch(2) + ")";
+  }
+  function hex(h) {
+    const s = h.replace("#", "");
+    return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
+  }
+
+  function drawMotif(c, t, r, time) {
+    const m = t.motif;
+    c.fillStyle = "rgba(255,255,255,0.85)";
+    c.strokeStyle = "rgba(255,255,255,0.8)";
+    c.lineWidth = Math.max(1.4, r * 0.07);
+    if (m === "spark" || m === "glitter") {
+      c.rotate(time * 0.6);
+      star(c, 0, 0, r * 0.7, r * 0.28, m === "glitter" ? 6 : 4);
+      c.fillStyle = "#fff8df";
+      c.fill();
+    } else if (m === "seed" || m === "shell") {
+      c.fillStyle = "rgba(80,46,24,0.35)";
+      c.beginPath();
+      c.ellipse(0, 0, r * 0.22, r * 0.62, 0.5, 0, Math.PI * 2);
+      c.fill();
+    } else if (m === "sprout") {
+      leaf(c, -r * 0.1, -r * 0.72, r);
+      leaf(c, r * 0.28, -r * 0.58, r * 0.8);
+    } else if (m === "bud") {
+      c.fillStyle = t.hi;
+      for (let i = 0; i < 3; i++) {
+        c.beginPath();
+        c.ellipse(0, -r * 0.05, r * 0.28, r * 0.48, (i - 1) * 0.7, 0, Math.PI * 2);
+        c.fill();
+      }
+    } else if (m === "flower") {
+      c.fillStyle = t.hi;
+      for (let i = 0; i < 6; i++) {
+        c.rotate(Math.PI / 3);
+        c.beginPath();
+        c.ellipse(0, -r * 0.38, r * 0.22, r * 0.36, 0, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.fillStyle = "#fff1c9";
+      c.beginPath();
+      c.arc(0, 0, r * 0.28, 0, Math.PI * 2);
+      c.fill();
+    } else if (m === "firefly") {
+      c.fillStyle = "rgba(255,255,255,0.28)";
+      c.beginPath();
+      c.ellipse(-r * 0.7, 0, r * 0.46, r * 0.22, -0.4, 0, Math.PI * 2);
+      c.ellipse(r * 0.7, 0, r * 0.46, r * 0.22, 0.4, 0, Math.PI * 2);
+      c.fill();
+    } else if (m === "lantern") {
+      c.strokeStyle = "rgba(90,32,8,0.45)";
+      for (let i = -1; i <= 1; i++) {
+        c.beginPath();
+        c.moveTo(i * r * 0.28, -r * 0.7);
+        c.lineTo(i * r * 0.28, r * 0.55);
+        c.stroke();
+      }
+    } else if (m === "moon") {
+      c.fillStyle = "rgba(40,48,64,0.28)";
+      c.beginPath();
+      c.arc(r * 0.28, -r * 0.05, r * 0.72, 0, Math.PI * 2);
+      c.fill();
+    } else if (m === "sun" || m === "firework") {
+      c.strokeStyle = m === "firework" ? "#fff0a8" : "rgba(255,244,200,0.9)";
+      c.rotate(time * 0.35);
+      const n = m === "firework" ? 8 : 10;
+      for (let i = 0; i < n; i++) {
+        c.rotate(Math.PI / (n / 2));
+        c.beginPath();
+        c.moveTo(0, r * 0.2);
+        c.lineTo(0, r * (m === "firework" ? 1.05 : 1.25));
+        c.stroke();
+      }
+    } else if (m === "candy") {
+      c.fillStyle = "#fff";
+      c.beginPath();
+      c.moveTo(-r * 0.55, 0);
+      c.lineTo(-r * 0.95, -r * 0.28);
+      c.lineTo(-r * 0.95, r * 0.28);
+      c.moveTo(r * 0.55, 0);
+      c.lineTo(r * 0.95, -r * 0.28);
+      c.lineTo(r * 0.95, r * 0.28);
+      c.fill();
+    } else if (m === "cookie") {
+      c.fillStyle = "#8a4b2a";
+      for (let i = 0; i < 5; i++) {
+        const a = i * 1.25;
+        c.beginPath();
+        c.arc(Math.cos(a) * r * 0.32, Math.sin(a) * r * 0.32, r * 0.1, 0, Math.PI * 2);
+        c.fill();
+      }
+    } else if (m === "donut") {
+      c.strokeStyle = "#fff";
+      c.lineWidth = r * 0.22;
+      c.beginPath();
+      c.arc(0, 0, r * 0.42, 0, Math.PI * 2);
+      c.stroke();
+      c.fillStyle = "#ff6fa8";
+      for (let i = 0; i < 6; i++) {
+        c.rotate(Math.PI / 3);
+        c.fillRect(-r * 0.05, -r * 0.62, r * 0.1, r * 0.16);
+      }
+    } else if (m === "cupcake") {
+      c.fillStyle = "#fff6ea";
+      c.beginPath();
+      c.moveTo(-r * 0.46, r * 0.15);
+      c.lineTo(r * 0.46, r * 0.15);
+      c.lineTo(r * 0.28, r * 0.72);
+      c.lineTo(-r * 0.28, r * 0.72);
+      c.fill();
+      c.fillStyle = "#ff8ec4";
+      c.beginPath();
+      c.arc(0, -r * 0.05, r * 0.4, Math.PI, 0);
+      c.fill();
+    } else if (m === "ice") {
+      c.fillStyle = "#f2c48a";
+      c.beginPath();
+      c.moveTo(-r * 0.28, r * 0.05);
+      c.lineTo(0, r * 0.85);
+      c.lineTo(r * 0.28, r * 0.05);
+      c.fill();
+      c.fillStyle = "#fff";
+      c.beginPath();
+      c.arc(0, -r * 0.18, r * 0.38, 0, Math.PI * 2);
+      c.fill();
+    } else if (m === "cake") {
+      c.fillStyle = "#fff";
+      c.fillRect(-r * 0.5, -r * 0.05, r, r * 0.55);
+      c.fillStyle = "#ff8eb8";
+      c.fillRect(-r * 0.5, -r * 0.2, r, r * 0.22);
+      c.strokeStyle = "#ffe08a";
+      c.beginPath();
+      c.moveTo(0, -r * 0.2);
+      c.lineTo(0, -r * 0.7);
+      c.stroke();
+    } else if (m === "rainbow") {
+      const cols = ["#ff6b6b", "#ffd15c", "#8ed67a", "#7ec8ff", "#d0a0ff"];
+      cols.forEach((col, i) => {
+        c.strokeStyle = col;
+        c.lineWidth = r * 0.1;
+        c.beginPath();
+        c.arc(0, r * 0.25, r * (0.78 - i * 0.12), Math.PI, 0);
+        c.stroke();
+      });
+    } else if (m === "bubble") {
+      c.strokeStyle = "rgba(255,255,255,0.8)";
+      c.beginPath();
+      c.arc(0, 0, r * 0.62, 0, Math.PI * 2);
+      c.stroke();
+    } else if (m === "fish") {
+      c.fillStyle = "#fff2d8";
+      c.beginPath();
+      c.ellipse(-r * 0.05, 0, r * 0.46, r * 0.28, 0, 0, Math.PI * 2);
+      c.moveTo(r * 0.35, 0);
+      c.lineTo(r * 0.78, -r * 0.28);
+      c.lineTo(r * 0.78, r * 0.28);
+      c.fill();
+    } else if (m === "jelly") {
+      c.strokeStyle = "rgba(255,255,255,0.7)";
+      for (let i = -1; i <= 1; i++) {
+        c.beginPath();
+        c.moveTo(i * r * 0.28, r * 0.1);
+        c.quadraticCurveTo(i * r * 0.4, r * 0.7, i * r * 0.1, r * 0.9);
+        c.stroke();
+      }
+    } else if (m === "turtle") {
+      c.strokeStyle = "#2f6b32";
+      c.beginPath();
+      c.arc(0, 0, r * 0.42, 0, Math.PI * 2);
+      c.moveTo(-r * 0.42, 0);
+      c.lineTo(r * 0.42, 0);
+      c.moveTo(0, -r * 0.42);
+      c.lineTo(0, r * 0.42);
+      c.stroke();
+    } else if (m === "dolphin") {
+      c.strokeStyle = "#fff";
+      c.beginPath();
+      c.arc(0, r * 0.1, r * 0.48, Math.PI * 0.9, Math.PI * 1.8);
+      c.stroke();
+    } else if (m === "whale") {
+      c.fillStyle = "rgba(255,255,255,0.35)";
+      c.beginPath();
+      c.ellipse(0, r * 0.05, r * 0.62, r * 0.38, 0, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = "#fff";
+      c.beginPath();
+      c.moveTo(r * 0.15, -r * 0.25);
+      c.lineTo(r * 0.15, -r * 0.7);
+      c.stroke();
+    } else if (m === "pearl") {
+      c.fillStyle = "#fff";
+      c.beginPath();
+      c.arc(-r * 0.08, -r * 0.08, r * 0.28, 0, Math.PI * 2);
+      c.fill();
+    } else if (m === "island") {
+      c.fillStyle = "#3e9a62";
+      c.beginPath();
+      c.ellipse(0, r * 0.15, r * 0.62, r * 0.28, 0, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = "#2f6b32";
+      c.beginPath();
+      c.moveTo(0, r * 0.05);
+      c.lineTo(0, -r * 0.62);
+      c.moveTo(0, -r * 0.35);
+      c.lineTo(-r * 0.28, -r * 0.05);
+      c.moveTo(0, -r * 0.48);
+      c.lineTo(r * 0.26, -r * 0.16);
+      c.stroke();
+    }
+  }
+  function drawCreature(c, tier, x, y, r, time, angle) {
+    const t = TIERS[tier];
+    c.save();
+    c.translate(x, y);
+    const glow = c.createRadialGradient(0, 0, r * 0.2, 0, 0, r * 1.85);
+    glow.addColorStop(0, t.color);
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    c.globalAlpha = 0.38;
+    c.fillStyle = glow;
+    c.beginPath();
+    c.arc(0, 0, r * 1.85, 0, Math.PI * 2);
+    c.fill();
+    c.globalAlpha = 1;
+    const body = c.createRadialGradient(-r * 0.35, -r * 0.42, r * 0.1, 0, 0, r);
+    body.addColorStop(0, t.hi);
+    body.addColorStop(0.45, t.color);
+    body.addColorStop(1, t.lo);
+    c.fillStyle = body;
+    c.beginPath();
+    c.arc(0, 0, r, 0, Math.PI * 2);
+    c.fill();
+    c.save();
+    c.rotate(angle || 0);
+    c.strokeStyle = "rgba(255,255,255,0.28)";
+    c.fillStyle = "rgba(255,255,255,0.22)";
+    drawMotif(c, t, r, time);
+    c.restore();
+    if (t.face) {
+      const blink = Math.sin(time * 1.3 + (x + y) * 0.01) > 0.96;
+      c.fillStyle = "rgba(40,28,20,0.78)";
+      const ey = -r * 0.06;
+      if (blink) {
+        c.strokeStyle = "rgba(40,28,20,0.78)";
+        c.lineWidth = Math.max(1, r * 0.06);
+        c.beginPath();
+        c.moveTo(-r * 0.24, ey);
+        c.lineTo(-r * 0.08, ey);
+        c.moveTo(r * 0.08, ey);
+        c.lineTo(r * 0.24, ey);
+        c.stroke();
+      } else {
+        c.beginPath();
+        c.arc(-r * 0.16, ey, r * 0.07, 0, Math.PI * 2);
+        c.arc(r * 0.16, ey, r * 0.07, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.strokeStyle = "rgba(40,28,20,0.55)";
+      c.lineWidth = Math.max(1, r * 0.045);
+      c.beginPath();
+      c.arc(0, r * 0.16, r * 0.16, 0.15, Math.PI - 0.15);
+      c.stroke();
+    }
+    c.fillStyle = "rgba(255,255,255,0.38)";
+    c.beginPath();
+    c.ellipse(-r * 0.28, -r * 0.36, r * 0.26, r * 0.14, -0.7, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+  function star(c, x, y, outer, inner, n) {
+    c.beginPath();
+    for (let i = 0; i < n * 2; i++) {
+      const rad = i % 2 === 0 ? outer : inner;
+      const a = -Math.PI / 2 + (i * Math.PI) / n;
+      const px = x + Math.cos(a) * rad;
+      const py = y + Math.sin(a) * rad;
+      if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
+    }
+    c.closePath();
+  }
+  function leaf(c, x, y, s) {
+    c.save();
+    c.translate(x, y);
+    c.fillStyle = "#d8ff9a";
+    c.beginPath();
+    c.ellipse(0, 0, s * 0.16, s * 0.32, -0.8, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  function render() {
+    const size = viewSize();
+    const w = size.w;
+    const h = size.h;
+    const theme = look();
+    const warm = S.warmth;
+    const sky0 = mix(theme.sky0, "#f2b48a", warm * 0.55);
+    const sky1 = mix(theme.sky1, "#f6d2a8", warm * 0.4);
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, sky0);
+    g.addColorStop(0.55, sky1);
+    g.addColorStop(1, mix(theme.sky2, "#ffd7a8", warm * 0.35));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    if (save.night) {
+      ctx.fillStyle = "#f4efe4";
+      ctx.beginPath();
+      ctx.arc(w * 0.78, h * 0.16, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = sky0;
+      ctx.beginPath();
+      ctx.arc(w * 0.78 + 7, h * 0.16 - 2, 13, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = theme.lamp;
+      ctx.beginPath();
+      ctx.arc(w * 0.78, h * 0.16, 14, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    for (const m of S.motes) {
+      const px = m.x * w + Math.sin(S.time * m.v + m.p) * 16;
+      const py = (m.y * h + S.time * 8 * m.v) % (h + 20) - 10;
+      ctx.globalAlpha = 0.25 + Math.sin(S.time * 2 + m.p) * 0.15;
+      ctx.fillStyle = save.night ? "#f7f4ee" : theme.lamp;
+      ctx.beginPath();
+      ctx.arc(px, py, m.s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    const sh = S.shake;
+    ctx.save();
+    if (sh > 0.2) ctx.translate((Math.random() - 0.5) * sh, (Math.random() - 0.5) * sh);
+
+    const jar = S.jar;
+    const rr = Math.min(28, jar.w * 0.08);
+    ctx.fillStyle = "rgba(0,0,0,0.28)";
+    roundRect(ctx, jar.x + 8, jar.y + 16, jar.w, jar.h, rr);
+    ctx.fill();
+    ctx.fillStyle = theme.glass;
+    roundRect(ctx, jar.x, jar.y, jar.w, jar.h, rr);
+    ctx.fill();
+
+    const lineA = 0.25 + S.danger * 0.6;
+    ctx.strokeStyle = S.danger > 0.2 ? "rgba(255,120,100," + lineA + ")" : "rgba(244,239,228," + (0.18 + Math.sin(S.time * 2) * 0.03) + ")";
+    ctx.setLineDash([5, 7]);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(jar.l + 6, jar.danger);
+    ctx.lineTo(jar.r - 6, jar.danger);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const ordered = S.bodies.slice().sort((a, b) => a.y - b.y);
+    for (const b of ordered) {
+      const pop = 1 + b.pop * 0.28;
+      drawCreature(ctx, b.tier, b.x, b.y, b.r * pop, S.time + b.phase, b.angle * 0.25);
+    }
+
+    for (const p of S.particles) {
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255,255,255,0.28)";
+    roundRect(ctx, jar.x + 1, jar.y + 1, jar.w - 2, jar.h - 2, rr);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.beginPath();
+    ctx.moveTo(jar.x + 14, jar.y + 30);
+    ctx.quadraticCurveTo(jar.x + 18, jar.y + jar.h * 0.6, jar.x + 12, jar.b - 16);
+    ctx.stroke();
+
+    if (!S.over && S.canDrop) {
+      const r = radius(S.hold);
+      const y = jar.t + r + 2;
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = TIERS[S.hold].color;
+      ctx.beginPath();
+      ctx.ellipse(S.aimX, jar.b - 8, r * 0.7, r * 0.22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 0.9;
+      drawCreature(ctx, S.hold, S.aimX, y, r, S.time, 0);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.font = "700 16px Manrope, sans-serif";
+    ctx.textAlign = "center";
+    for (const f of S.floaters) {
+      ctx.globalAlpha = Math.max(0, Math.min(1, f.life));
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.text, f.x, f.y);
+    }
+    ctx.globalAlpha = 1;
+    if (S.combo >= 2 && S.comboLeft > 0) {
+      ctx.font = "560 22px Literata, Georgia, serif";
+      ctx.fillStyle = theme.lamp;
+      ctx.fillText("волна ×" + S.combo, jar.x + jar.w / 2, jar.danger + 28);
+    }
+    ctx.restore();
+  }
+
+  function tick(dt) {
+    S.time += dt;
+    if (S.comboLeft > 0) {
+      S.comboLeft -= dt;
+      if (S.comboLeft <= 0) S.combo = 0;
+    }
+    if (S.shake > 0) S.shake = Math.max(0, S.shake - dt * 14);
+    if (S.winLeft > 0 && !S.over) {
+      S.winLeft -= dt;
+      if (S.winLeft <= 0) winLevel();
+    }
+    const step = 1 / 120;
+    let sim = dt;
+    if (S.slow > 0) {
+      sim *= 0.42;
+      S.slow = Math.max(0, S.slow - dt);
+    }
+    if (!S.over) {
+      let guard = 0;
+      while (sim > 0 && guard < 8) {
+        const d = Math.min(step, sim);
+        physics(d);
+        sim -= d;
+        guard++;
+      }
+    }
+    for (const p of S.particles) {
+      p.life -= dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 80 * dt;
+    }
+    S.particles = S.particles.filter((p) => p.life > 0);
+    for (const f of S.floaters) {
+      f.life -= dt;
+      f.y -= 28 * dt;
+    }
+    S.floaters = S.floaters.filter((f) => f.life > 0);
+    if (toastTimer > 0) {
+      toastTimer -= dt;
+      if (toastTimer <= 0) toastEl.classList.remove("show");
+    }
+    if (wishEl.classList.contains("done") && toastTimer <= 0) wishEl.classList.remove("done");
+    syncHud();
+    render();
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    tick(dt);
+    requestAnimationFrame(frame);
+  }
+
+  function aimFromEvent(e) {
+    const rect = canvas.getBoundingClientRect();
+    S.aimX = e.clientX - rect.left;
+    S.aimReady = true;
+    clampAim();
+  }
+  canvas.addEventListener("pointerdown", (e) => {
+    if (S.over) return;
+    pointerId = e.pointerId;
+    canvas.setPointerCapture(e.pointerId);
+    aimFromEvent(e);
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    if (pointerId !== e.pointerId) return;
+    aimFromEvent(e);
+  });
+  canvas.addEventListener("pointerup", (e) => {
+    if (pointerId !== e.pointerId) return;
+    aimFromEvent(e);
+    pointerId = null;
+    drop();
+  });
+  window.addEventListener("keydown", (e) => {
+    const nudge = 18 * S.scale;
+    if (e.key === "ArrowLeft") { S.aimX -= nudge; S.aimReady = true; clampAim(); }
+    else if (e.key === "ArrowRight") { S.aimX += nudge; S.aimReady = true; clampAim(); }
+    else if (e.key === " " || e.key === "ArrowDown") { e.preventDefault(); drop(); }
+    else if ((e.key === "r" || e.key === "R" || e.key === "к" || e.key === "К") && S.over) resetRun();
+    else if (e.key === "m" || e.key === "M" || e.key === "ь" || e.key === "Ь") toggleMute();
+  });
+  document.getElementById("again").addEventListener("click", (e) => { e.stopPropagation(); resetRun(); });
+  themeBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    save.night = !save.night;
+    persist();
+    paintToggles();
+  });
+  function toggleMute() {
+    save.muted = !save.muted;
+    persist();
+    paintToggles();
+    if (!save.muted) tone(523, 0.12, 0.05, "triangle");
+  }
+  muteBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleMute(); });
+  window.addEventListener("resize", layout);
+  if (window.visualViewport) {
+    visualViewport.addEventListener("resize", layout);
+    visualViewport.addEventListener("scroll", layout);
+  }
+
+  document.getElementById("rankForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    saveRank(document.getElementById("rankName").value);
+  });
+  document.getElementById("nextLevel").addEventListener("click", (e) => {
+    e.stopPropagation();
+    applyLevel(Math.min(LEVELS.length - 1, save.level + 1));
+    persist();
+    resetRun();
+  });
+  touchStreak();
+  applyLevel(Math.min(save.unlocked, save.level || 0));
+  paintAlbum();
+  layout();
+  resetRun();
+  if (save.streak > 1) toast(save.streak + "-й день у сада");
+  requestAnimationFrame(frame);
+
+  window.__svetosad = {
+    S, drop, resetRun, endRun, saveRank, pullBoard, TIERS, radius,
+    dropAt(x) { S.aimX = x; S.aimReady = true; clampAim(); drop(); }
+  };
+})();
+  </script>
+</body>
+</html>
