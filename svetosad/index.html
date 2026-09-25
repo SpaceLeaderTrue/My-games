@@ -715,10 +715,7 @@
       if (b.y - b.r < jar.danger) hot = true;
     }
     if (!S.over) {
-      if (hot) S.overLeft += dt;
-      else S.overLeft = Math.max(0, S.overLeft - dt * 0.85);
       S.danger += ((hot ? 1 : 0) - S.danger) * Math.min(1, dt * 6);
-      if (S.overLeft > 1.55 && !(S.winLeft > 0)) endRun();
     }
     if (S.fresh && (S.fresh.touched || S.fresh.age > 0.7 || !S.fresh.alive)) {
       S.fresh = null;
@@ -1053,8 +1050,7 @@
     const streak = save.streak > 1 ? " · " + save.streak + " дн." : "";
     bestEl.textContent = "рекорд " + fmt(levelBest()) + streak;
     const wish = currentWish();
-    if (S.danger > 0.65 && !S.over) wishEl.textContent = "почти полон";
-    else wishEl.textContent = wish.text;
+    wishEl.textContent = wish.text;
     const theme = look();
     paintLevels();
     paintToggles();
