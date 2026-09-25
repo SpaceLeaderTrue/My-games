@@ -797,6 +797,7 @@
       const SPEED_MAX_REV = SPEED_MAX * 0.5;
       const HOVER_SPEED = 0;
       const NEUTRAL_DRIFT = 0.42; // slow forward glide in neutral
+      const COAST = 0.62; // minimum forward speed when the throttle is released
       const ACCEL = 2.2;
       const DECEL = 1.35;
       const BRAKE_DECEL = 3.6;
@@ -804,17 +805,23 @@
       let orient = [0, 0, 0, 1];
       const ship = { x: 0, y: 0, z: 0 };
       const PLACES = [
-        { name: "СЕВЕР", x: 0, y: 0, z: -40, r: 16, color: "#d5e4ff" },
-        { name: "ЛАЗУРЬ", x: 180, y: -30, z: 720, r: 42, color: "#6eb6ff" },
-        { name: "ЯНТАРЬ", x: -420, y: 40, z: 1280, r: 64, color: "#e7a45a" },
-        { name: "ИНЕЙ", x: 520, y: 70, z: 1760, r: 36, color: "#e7fbff" },
-        { name: "ГЕЛИОС", x: 60, y: -90, z: 2400, r: 88, color: "#ffe3a8" },
+        { name: "СОЛНЦЕ", x: 0, y: 0, z: 520, r: 86, color: "#ffe08a" },
+        { name: "МЕРКУРИЙ", x: 70, y: 8, z: 700, r: 10, color: "#c4b29a" },
+        { name: "ВЕНЕРА", x: -90, y: -10, z: 920, r: 20, color: "#e6c48a" },
+        { name: "ЗЕМЛЯ", x: 110, y: 6, z: 1180, r: 22, color: "#6eb0e8" },
+        { name: "ЛУНА", x: 148, y: 14, z: 1210, r: 8, color: "#d5d8e0" },
+        { name: "МАРС", x: -70, y: 18, z: 1480, r: 14, color: "#d4784a" },
+        { name: "ЮПИТЕР", x: 180, y: -24, z: 1980, r: 52, color: "#e2b07a" },
+        { name: "САТУРН", x: -160, y: 20, z: 2520, r: 44, color: "#efd2a0", rings: true },
+        { name: "УРАН", x: 140, y: -16, z: 3080, r: 26, color: "#b7e6e4" },
+        { name: "НЕПТУН", x: -90, y: 12, z: 3600, r: 25, color: "#4d6ed6" },
       ];
-      const ROUTES = [[0, 1], [1, 2], [1, 3], [2, 4], [3, 4]];
+      const ROUTES = [[0, 1], [1, 2], [2, 3], [3, 5], [5, 6], [6, 7], [7, 8], [8, 9]];
+      const NAV_BOX = { minX: -280, maxX: 320, minZ: -80, maxZ: 3800 };
       const mapFix = document.getElementById("mapFix");
       const navMap = document.getElementById("navMap");
       const navCtx = navMap.getContext("2d");
-      let navTarget = PLACES[1];
+      let navTarget = PLACES[3];
       let stickX = 0;
       let stickY = 0;
       let stickSX = 0; // smoothed stick
@@ -935,8 +942,7 @@
 
       function driveSpeed() {
         if (braking) return 0;
-        if (gear === "N") return Math.max(0, speed);
-        if ((gear === "D" || gear === "R") && !thrusting && speed < 0.05) return 0;
+        if (gear === "R" && !thrusting && speed < 0.05) return 0;
         return Math.max(0, speed);
       }
 
@@ -1511,13 +1517,11 @@
             if (speed < 0.03) speed = 0;
           }
         } else {
-          // D — drive
           reverse = false;
           if (thrusting && canThrust()) {
             speed = Math.min(SPEED_MAX, speed + ACCEL * dt);
           } else {
-            speed = Math.max(0, speed - DECEL * dt);
-            if (speed < 0.03) speed = 0;
+            speed = expApproach(speed, COAST, 1.5, dt);
           }
         }
 
@@ -1828,6 +1832,7 @@
           }
         }
         ctx.globalCompositeOperation = "source-over";
+        drawMilkyWay();
         drawConstellations();
         drawMap();
         drawNavigator();
@@ -1870,6 +1875,59 @@
         const dec = decDeg * Math.PI / 180;
         const c = Math.cos(dec);
         return { x: c * Math.sin(ra), y: Math.sin(dec), z: c * Math.cos(ra) };
+      }
+      const MILKY = (() => {
+        const pts = [];
+        let s = 0x51a7c3;
+        const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+        const tilt = 1.05;
+        const ct = Math.cos(tilt), st = Math.sin(tilt);
+        for (let i = 0; i < 900; i++) {
+          const lon = rnd() * Math.PI * 2;
+          const lat = (rnd() - 0.5) * (rnd() - 0.5) * 0.7 * (rnd() < 0.5 ? 1 : -1);
+          const cl = Math.cos(lat);
+          const x = cl * Math.sin(lon);
+          const y0 = Math.sin(lat);
+          const z0 = cl * Math.cos(lon);
+          pts.push({
+            x, y: y0 * ct - z0 * st, z: y0 * st + z0 * ct,
+            b: 0.25 + rnd() * 0.75,
+          });
+        }
+        return pts;
+      })();
+      function drawMilkyWay() {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        for (let i = 0; i < 8; i++) {
+          const lon = i / 8 * Math.PI * 2;
+          const dir = qRotate(qConj(orient), {
+            x: Math.sin(lon),
+            y: -Math.sin(1.05) * Math.cos(lon),
+            z: Math.cos(1.05) * Math.cos(lon),
+          });
+          if (dir.z < 0.05) continue;
+          const p = projectCam(dir.x, -dir.y, dir.z, camRoll);
+          const rad = 90 + (i % 3) * 40;
+          const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rad);
+          g.addColorStop(0, "rgba(186, 198, 255, 0.07)");
+          g.addColorStop(1, "rgba(186, 198, 255, 0)");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, rad, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = "rgba(230, 236, 255, 0.85)";
+        for (let i = 0; i < MILKY.length; i++) {
+          const s = MILKY[i];
+          const c = qRotate(qConj(orient), s);
+          if (c.z < 0.05) continue;
+          const p = projectCam(c.x, -c.y, c.z, camRoll);
+          const sz = s.b > 0.82 ? 1.7 : 1;
+          ctx.globalAlpha = 0.28 + s.b * 0.55;
+          ctx.fillRect(p.x, p.y, sz, sz);
+        }
+        ctx.restore();
       }
       function drawConstellations() {
         ctx.save();
@@ -1946,6 +2004,17 @@
           ctx.beginPath();
           ctx.arc(pr.x, pr.y, rad, 0, Math.PI * 2);
           ctx.fill();
+          if (o.p.rings) {
+            ctx.save();
+            ctx.translate(pr.x, pr.y);
+            ctx.scale(1, 0.38);
+            ctx.beginPath();
+            ctx.arc(0, 0, rad * 2.15, 0, Math.PI * 2);
+            ctx.arc(0, 0, rad * 1.35, 0, Math.PI * 2, true);
+            ctx.fillStyle = "rgba(236, 214, 170, 0.45)";
+            ctx.fill();
+            ctx.restore();
+          }
           if (rad > 7) {
             ctx.fillStyle = "rgba(236, 242, 255, 0.92)";
             ctx.font = "11px ui-monospace, monospace";
@@ -1971,7 +2040,7 @@
         c.clearRect(0, 0, s, s);
         c.fillStyle = "rgba(4, 8, 16, 0.55)";
         c.fillRect(0, 0, s, s);
-        const minX = -560, maxX = 680, minZ = -220, maxZ = 2600;
+        const { minX, maxX, minZ, maxZ } = NAV_BOX;
         const X = (x) => 14 + (x - minX) / (maxX - minX) * (s - 28);
         const Z = (z) => s - 14 - (z - minZ) / (maxZ - minZ) * (s - 28);
         c.strokeStyle = "rgba(126, 182, 255, 0.35)";
@@ -2012,7 +2081,7 @@
         const rect = navMap.getBoundingClientRect();
         const mx = (e.clientX - rect.left) * (navMap.width / rect.width);
         const my = (e.clientY - rect.top) * (navMap.height / rect.height);
-        const minX = -560, maxX = 680, minZ = -220, maxZ = 2600;
+        const { minX, maxX, minZ, maxZ } = NAV_BOX;
         const s = navMap.width;
         const X = (x) => 14 + (x - minX) / (maxX - minX) * (s - 28);
         const Z = (z) => s - 14 - (z - minZ) / (maxZ - minZ) * (s - 28);
