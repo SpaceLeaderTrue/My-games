@@ -95,6 +95,12 @@
       font: 700 13px/1 "Manrope", sans-serif;
       border-radius: 999px; padding: 10px 12px;
     }
+    button.icon {
+      width: 42px; height: 42px; padding: 0;
+      display: grid; place-items: center;
+    }
+    button.icon svg { width: 22px; height: 22px; display: block; }
+    button.icon.on { border-color: var(--lamp); color: var(--lamp); }
     button:hover { border-color: rgba(255,177,90,0.7); }
     button.primary {
       background: linear-gradient(180deg, #ffc27a, var(--lamp-deep));
@@ -164,8 +170,8 @@
     </div>
     <div class="album" id="album"></div>
     <div class="tools">
-      <button type="button" id="themeBtn">ночь</button>
-      <button type="button" id="muteBtn">звук</button>
+      <button type="button" class="icon" id="themeBtn" aria-label="Включить ночь"></button>
+      <button type="button" class="icon" id="muteBtn" aria-label="Выключить звук"></button>
     </div>
   </div>
   <div class="toast" id="toast"></div>
@@ -334,7 +340,7 @@
 
   function emptyBook() { return RADII.map(() => 0); }
   function loadSave() {
-    const blank = { best: 0, bests: [0, 0, 0], discovers: emptyBook(), books: [emptyBook(), emptyBook(), emptyBook()], merges: 0, gardens: 0, suns: 0, lastDay: "", streak: 0, theme: "night", muted: false, mastery: 0, masteries: [0, 0, 0], level: 0, unlocked: 0, cleared: [0, 0, 0] };
+    const blank = { best: 0, bests: [0, 0, 0], discovers: emptyBook(), books: [emptyBook(), emptyBook(), emptyBook()], merges: 0, gardens: 0, suns: 0, lastDay: "", streak: 0, theme: "night", night: false, muted: false, mastery: 0, masteries: [0, 0, 0], level: 0, unlocked: 0, cleared: [0, 0, 0] };
     try {
       const raw = localStorage.getItem(SAVE_KEY);
       const data = raw ? Object.assign(blank, JSON.parse(raw)) : blank;
@@ -830,6 +836,52 @@
       albumEl.appendChild(pip);
     });
   }
+  const SUN_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.1 5.1l1.6 1.6M17.3 17.3l1.6 1.6M18.9 5.1l-1.6 1.6M6.7 17.3l-1.6 1.6"/></g></svg>';
+  const MOON_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.5 3.2a8.2 8.2 0 1 0 5.3 14.2A8.6 8.6 0 0 1 15.5 3.2z"/></svg>';
+  const SOUND_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 9h3.2L12 5.2v13.6L7.2 15H4z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M16 9.2a3.6 3.6 0 0 1 0 5.6M18.4 7a6.2 6.2 0 0 1 0 10"/></svg>';
+  const MUTE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 9h3.2L12 5.2v13.6L7.2 15H4z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M16 9.5l5 5M21 9.5l-5 5"/></svg>';
+  function mixHex(a, b, t) {
+    const pa = hex(a), pb = hex(b);
+    const ch = (i) => Math.round(pa[i] + (pb[i] - pa[i]) * t).toString(16).padStart(2, "0");
+    return "#" + ch(0) + ch(1) + ch(2);
+  }
+  function look() {
+    const base = LEVELS[save.level].sky;
+    if (!save.night) {
+      return {
+        sky0: mixHex(base.sky0, "#f8e7c8", 0.34),
+        sky1: mixHex(base.sky1, "#ffd8ae", 0.2),
+        sky2: base.sky2,
+        lamp: base.lamp,
+        ink: base.ink,
+        glass: base.glass
+      };
+    }
+    return {
+      sky0: mixHex(base.sky0, "#02040a", 0.82),
+      sky1: mixHex(base.sky1, "#0a1224", 0.74),
+      sky2: mixHex(base.sky2, "#141c30", 0.66),
+      lamp: "#d5e2ff",
+      ink: "#f4efe4",
+      glass: "rgba(180,200,230,0.14)"
+    };
+  }
+  function paintToggles() {
+    const night = save.night ? "1" : "0";
+    if (themeBtn.dataset.on !== night) {
+      themeBtn.dataset.on = night;
+      themeBtn.classList.toggle("on", !!save.night);
+      themeBtn.innerHTML = save.night ? MOON_ICON : SUN_ICON;
+      themeBtn.setAttribute("aria-label", save.night ? "Выключить ночь" : "Включить ночь");
+    }
+    const quiet = save.muted ? "1" : "0";
+    if (muteBtn.dataset.on !== quiet) {
+      muteBtn.dataset.on = quiet;
+      muteBtn.classList.toggle("on", !!save.muted);
+      muteBtn.innerHTML = save.muted ? MUTE_ICON : SOUND_ICON;
+      muteBtn.setAttribute("aria-label", save.muted ? "Включить звук" : "Выключить звук");
+    }
+  }
   function syncNext() {
     nextNameEl.textContent = TIERS[S.next].name;
     const c = nextCtx;
@@ -845,10 +897,9 @@
     const wish = currentWish();
     if (S.danger > 0.65 && !S.over) wishEl.textContent = "почти полон";
     else wishEl.textContent = wish.text;
-    const theme = LEVELS[save.level].sky;
+    const theme = look();
     paintLevels();
-    themeBtn.textContent = (THEMES[save.theme] || THEMES.night).name;
-    muteBtn.textContent = save.muted ? "тихо" : "звук";
+    paintToggles();
     document.getElementById("foot").style.visibility = S.over ? "hidden" : "visible";
     document.documentElement.style.setProperty("--ink", theme.ink);
     document.documentElement.style.setProperty("--lamp", theme.lamp);
@@ -1161,7 +1212,7 @@
     const size = viewSize();
     const w = size.w;
     const h = size.h;
-    const theme = LEVELS[save.level].sky;
+    const theme = look();
     const warm = S.warmth;
     const sky0 = mix(theme.sky0, "#f2b48a", warm * 0.55);
     const sky1 = mix(theme.sky1, "#f6d2a8", warm * 0.4);
@@ -1171,12 +1222,27 @@
     g.addColorStop(1, mix(theme.sky2, "#ffd7a8", warm * 0.35));
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
+    if (save.night) {
+      ctx.fillStyle = "#f4efe4";
+      ctx.beginPath();
+      ctx.arc(w * 0.78, h * 0.16, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = sky0;
+      ctx.beginPath();
+      ctx.arc(w * 0.78 + 7, h * 0.16 - 2, 13, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = theme.lamp;
+      ctx.beginPath();
+      ctx.arc(w * 0.78, h * 0.16, 14, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     for (const m of S.motes) {
       const px = m.x * w + Math.sin(S.time * m.v + m.p) * 16;
       const py = (m.y * h + S.time * 8 * m.v) % (h + 20) - 10;
       ctx.globalAlpha = 0.25 + Math.sin(S.time * 2 + m.p) * 0.15;
-      ctx.fillStyle = theme.lamp;
+      ctx.fillStyle = save.night ? "#f7f4ee" : theme.lamp;
       ctx.beginPath();
       ctx.arc(px, py, m.s, 0, Math.PI * 2);
       ctx.fill();
@@ -1348,26 +1414,14 @@
   document.getElementById("again").addEventListener("click", (e) => { e.stopPropagation(); resetRun(); });
   themeBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    const order = ["night", "honey", "dawn"];
-    const unlocked = {
-      night: true,
-      honey: save.gardens >= 3,
-      dawn: save.suns >= 1 || save.discovers[8] === 1
-    };
-    let i = order.indexOf(save.theme);
-    for (let n = 0; n < order.length; n++) {
-      i = (i + 1) % order.length;
-      if (unlocked[order[i]]) {
-        save.theme = order[i];
-        persist();
-        return;
-      }
-    }
-    toast(save.suns < 1 ? "мёд — после трёх садов, рассвет — после солнца" : "мёд откроется после трёх садов");
+    save.night = !save.night;
+    persist();
+    paintToggles();
   });
   function toggleMute() {
     save.muted = !save.muted;
     persist();
+    paintToggles();
     if (!save.muted) tone(523, 0.12, 0.05, "triangle");
   }
   muteBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleMute(); });
