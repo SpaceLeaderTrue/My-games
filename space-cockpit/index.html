@@ -805,16 +805,16 @@
       let orient = [0, 0, 0, 1];
       const ship = { x: 0, y: 0, z: 0 };
       const PLACES = [
-        { name: "СОЛНЦЕ", x: 0, y: 0, z: 520, r: 86, color: "#ffe08a" },
-        { name: "МЕРКУРИЙ", x: 70, y: 8, z: 700, r: 10, color: "#c4b29a" },
-        { name: "ВЕНЕРА", x: -90, y: -10, z: 920, r: 20, color: "#e6c48a" },
-        { name: "ЗЕМЛЯ", x: 110, y: 6, z: 1180, r: 22, color: "#6eb0e8" },
-        { name: "ЛУНА", x: 148, y: 14, z: 1210, r: 8, color: "#d5d8e0" },
-        { name: "МАРС", x: -70, y: 18, z: 1480, r: 14, color: "#d4784a" },
-        { name: "ЮПИТЕР", x: 180, y: -24, z: 1980, r: 52, color: "#e2b07a" },
-        { name: "САТУРН", x: -160, y: 20, z: 2520, r: 44, color: "#efd2a0", rings: true },
-        { name: "УРАН", x: 140, y: -16, z: 3080, r: 26, color: "#b7e6e4" },
-        { name: "НЕПТУН", x: -90, y: 12, z: 3600, r: 25, color: "#4d6ed6" },
+        { name: "СОЛНЦЕ", x: 0, y: 0, z: 520, r: 86, color: "#ffe08a", kind: "sun", spin: 0.04 },
+        { name: "МЕРКУРИЙ", x: 70, y: 8, z: 700, r: 10, color: "#c4b29a", kind: "mercury", spin: 0.12 },
+        { name: "ВЕНЕРА", x: -90, y: -10, z: 920, r: 20, color: "#e6c48a", kind: "venus", spin: 0.05 },
+        { name: "ЗЕМЛЯ", x: 110, y: 6, z: 1180, r: 22, color: "#6eb0e8", kind: "earth", spin: 0.18 },
+        { name: "ЛУНА", x: 148, y: 14, z: 1210, r: 8, color: "#d5d8e0", kind: "moon", spin: 0.08 },
+        { name: "МАРС", x: -70, y: 18, z: 1480, r: 14, color: "#d4784a", kind: "mars", spin: 0.16 },
+        { name: "ЮПИТЕР", x: 180, y: -24, z: 1980, r: 52, color: "#e2b07a", kind: "jupiter", spin: 0.28 },
+        { name: "САТУРН", x: -160, y: 20, z: 2520, r: 44, color: "#efd2a0", kind: "saturn", spin: 0.24, rings: true },
+        { name: "УРАН", x: 140, y: -16, z: 3080, r: 26, color: "#b7e6e4", kind: "uranus", spin: 0.14 },
+        { name: "НЕПТУН", x: -90, y: 12, z: 3600, r: 25, color: "#4d6ed6", kind: "neptune", spin: 0.15 },
       ];
       const ROUTES = [[0, 1], [1, 2], [2, 3], [3, 5], [5, 6], [6, 7], [7, 8], [8, 9]];
       const NAV_BOX = { minX: -280, maxX: 320, minZ: -80, maxZ: 3800 };
@@ -1893,6 +1893,185 @@
           z: p.z - ship.z,
         });
       }
+      function texCanvas() {
+        const c = document.createElement("canvas");
+        c.width = c.height = 256;
+        return { c, g: c.getContext("2d") };
+      }
+      function rndOf(seed) {
+        let s = seed >>> 0;
+        return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      }
+      function craters(g, rnd, n, light, dark) {
+        for (let i = 0; i < n; i++) {
+          const x = rnd() * 256, y = rnd() * 256, r = 2 + rnd() * 11;
+          g.fillStyle = dark;
+          g.beginPath(); g.arc(x + 1.2, y + 1.2, r, 0, Math.PI * 2); g.fill();
+          g.fillStyle = light;
+          g.beginPath(); g.arc(x, y, r * 0.82, 0, Math.PI * 2); g.fill();
+          g.fillStyle = "rgba(255,255,255,0.18)";
+          g.beginPath(); g.arc(x - r * 0.25, y - r * 0.25, r * 0.28, 0, Math.PI * 2); g.fill();
+        }
+      }
+      function bands(g, rows) {
+        rows.forEach(([y, h, color]) => {
+          g.fillStyle = color;
+          g.fillRect(0, y, 256, h);
+        });
+      }
+      const PLANET_TEX = (() => {
+        const out = {};
+        const sun = texCanvas();
+        let grd = sun.g.createRadialGradient(128, 128, 10, 128, 128, 128);
+        grd.addColorStop(0, "#fff7d2");
+        grd.addColorStop(0.35, "#ffd15a");
+        grd.addColorStop(0.72, "#f08a22");
+        grd.addColorStop(1, "#c2410c");
+        sun.g.fillStyle = grd; sun.g.fillRect(0, 0, 256, 256);
+        let r = rndOf(3);
+        for (let i = 0; i < 80; i++) {
+          sun.g.fillStyle = `rgba(255,255,220,${0.05 + r() * 0.12})`;
+          sun.g.beginPath(); sun.g.arc(r() * 256, r() * 256, 4 + r() * 14, 0, Math.PI * 2); sun.g.fill();
+        }
+        for (let i = 0; i < 5; i++) {
+          sun.g.fillStyle = "rgba(90, 40, 10, 0.55)";
+          sun.g.beginPath(); sun.g.arc(40 + r() * 180, 40 + r() * 180, 4 + r() * 7, 0, Math.PI * 2); sun.g.fill();
+        }
+        out.sun = sun.c;
+
+        const mercury = texCanvas();
+        mercury.g.fillStyle = "#b5a898"; mercury.g.fillRect(0, 0, 256, 256);
+        craters(mercury.g, rndOf(11), 70, "#d9d0c4", "#6e655c");
+        out.mercury = mercury.c;
+
+        const venus = texCanvas();
+        venus.g.fillStyle = "#e7c98a"; venus.g.fillRect(0, 0, 256, 256);
+        r = rndOf(17);
+        for (let i = 0; i < 18; i++) {
+          venus.g.strokeStyle = `rgba(255, 236, 190, ${0.25 + r() * 0.35})`;
+          venus.g.lineWidth = 6 + r() * 10;
+          venus.g.beginPath();
+          venus.g.moveTo(-10, r() * 256);
+          venus.g.bezierCurveTo(80, r() * 256, 140, r() * 256, 270, r() * 256);
+          venus.g.stroke();
+        }
+        out.venus = venus.c;
+
+        const earth = texCanvas();
+        earth.g.fillStyle = "#1d5fa8"; earth.g.fillRect(0, 0, 256, 256);
+        earth.g.fillStyle = "#2f8f4e";
+        const lands = [[40, 70, 54, 38], [70, 110, 70, 46], [150, 80, 48, 60], [180, 140, 62, 36], [30, 160, 40, 28], [120, 40, 36, 22]];
+        lands.forEach(([x, y, w, h]) => { earth.g.beginPath(); earth.g.ellipse(x, y, w, h, 0.4, 0, Math.PI * 2); earth.g.fill(); });
+        earth.g.fillStyle = "#6b8f3a";
+        [[55, 90, 22, 14], [168, 100, 18, 16]].forEach(([x, y, w, h]) => { earth.g.beginPath(); earth.g.ellipse(x, y, w, h, -0.2, 0, Math.PI * 2); earth.g.fill(); });
+        earth.g.fillStyle = "#f4fbff";
+        earth.g.fillRect(0, 0, 256, 16); earth.g.fillRect(0, 240, 256, 16);
+        r = rndOf(29);
+        earth.g.fillStyle = "rgba(255,255,255,0.55)";
+        for (let i = 0; i < 14; i++) { earth.g.beginPath(); earth.g.ellipse(r() * 256, 30 + r() * 190, 18 + r() * 28, 6 + r() * 8, r(), 0, Math.PI * 2); earth.g.fill(); }
+        out.earth = earth.c;
+
+        const moon = texCanvas();
+        moon.g.fillStyle = "#c8c6c2"; moon.g.fillRect(0, 0, 256, 256);
+        moon.g.fillStyle = "#8d8a86";
+        [[70, 120, 46, 28], [150, 90, 34, 22], [180, 150, 28, 18]].forEach(([x, y, w, h]) => { moon.g.beginPath(); moon.g.ellipse(x, y, w, h, 0.2, 0, Math.PI * 2); moon.g.fill(); });
+        craters(moon.g, rndOf(41), 55, "#ddd9d4", "#7a7672");
+        out.moon = moon.c;
+
+        const mars = texCanvas();
+        mars.g.fillStyle = "#c65b32"; mars.g.fillRect(0, 0, 256, 256);
+        mars.g.fillStyle = "#8d3b28";
+        mars.g.beginPath(); mars.g.ellipse(150, 110, 48, 26, 0.5, 0, Math.PI * 2); mars.g.fill();
+        mars.g.fillStyle = "#e7d2b0";
+        mars.g.fillRect(0, 0, 256, 14);
+        craters(mars.g, rndOf(53), 24, "#d88a62", "#7a321c");
+        out.mars = mars.c;
+
+        const jupiter = texCanvas();
+        bands(jupiter.g, [
+          [0, 22, "#f3e2c2"], [22, 18, "#d7a36a"], [40, 28, "#f7efe0"], [68, 16, "#c4844a"],
+          [84, 36, "#e8c48a"], [120, 20, "#f4d7a8"], [140, 26, "#b86a3a"], [166, 30, "#f0d2a4"],
+          [196, 18, "#c98955"], [214, 42, "#f6e6c8"],
+        ]);
+        jupiter.g.fillStyle = "#c84b3a";
+        jupiter.g.beginPath(); jupiter.g.ellipse(168, 150, 16, 10, 0, 0, Math.PI * 2); jupiter.g.fill();
+        jupiter.g.strokeStyle = "rgba(120,60,30,0.35)";
+        jupiter.g.stroke();
+        out.jupiter = jupiter.c;
+
+        const saturn = texCanvas();
+        bands(saturn.g, [
+          [0, 28, "#f6e7c4"], [28, 22, "#e2c48a"], [50, 34, "#f8f0dc"], [84, 18, "#d7b56e"],
+          [102, 40, "#f3e0b4"], [142, 24, "#cda86a"], [166, 36, "#f7edd4"], [202, 54, "#e6cb90"],
+        ]);
+        out.saturn = saturn.c;
+
+        const uranus = texCanvas();
+        uranus.g.fillStyle = "#c5efe8"; uranus.g.fillRect(0, 0, 256, 256);
+        bands(uranus.g, [[70, 8, "rgba(255,255,255,0.28)"], [120, 6, "rgba(90,160,160,0.25)"], [168, 10, "rgba(255,255,255,0.2)"]]);
+        out.uranus = uranus.c;
+
+        const neptune = texCanvas();
+        neptune.g.fillStyle = "#2f5ed0"; neptune.g.fillRect(0, 0, 256, 256);
+        bands(neptune.g, [[40, 10, "rgba(180,210,255,0.35)"], [96, 8, "rgba(20,40,120,0.35)"], [150, 12, "rgba(210,230,255,0.3)"]]);
+        neptune.g.fillStyle = "#1a3278";
+        neptune.g.beginPath(); neptune.g.ellipse(150, 130, 14, 8, 0.2, 0, Math.PI * 2); neptune.g.fill();
+        out.neptune = neptune.c;
+        return out;
+      })();
+      function drawRings(x, y, rad) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(1, 0.36);
+        ctx.beginPath();
+        ctx.arc(0, 0, rad * 2.2, 0, Math.PI * 2);
+        ctx.arc(0, 0, rad * 1.35, 0, Math.PI * 2, true);
+        const rg = ctx.createLinearGradient(-rad * 2, 0, rad * 2, 0);
+        rg.addColorStop(0, "rgba(90, 70, 40, 0.15)");
+        rg.addColorStop(0.35, "rgba(236, 214, 170, 0.72)");
+        rg.addColorStop(0.5, "rgba(255, 244, 214, 0.35)");
+        rg.addColorStop(0.68, "rgba(210, 170, 110, 0.7)");
+        rg.addColorStop(1, "rgba(90, 70, 40, 0.15)");
+        ctx.fillStyle = rg;
+        ctx.fill();
+        ctx.restore();
+      }
+      function drawPlanet(p, x, y, rad) {
+        const tex = PLANET_TEX[p.kind];
+        if (!tex || rad < 5) {
+          ctx.fillStyle = p.color;
+          ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
+          return;
+        }
+        if (p.kind === "sun") {
+          const corona = ctx.createRadialGradient(x, y, rad * 0.7, x, y, rad * 2.4);
+          corona.addColorStop(0, "rgba(255, 210, 90, 0.45)");
+          corona.addColorStop(1, "rgba(255, 140, 40, 0)");
+          ctx.fillStyle = corona;
+          ctx.beginPath(); ctx.arc(x, y, rad * 2.4, 0, Math.PI * 2); ctx.fill();
+        }
+        const shift = ((hoverRockT * (p.spin || 0.1)) % 1) * tex.width;
+        const dw = rad * 2;
+        const sx = x - rad - shift * (dw / tex.width);
+        ctx.save();
+        ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.clip();
+        ctx.drawImage(tex, sx, y - rad, dw, dw);
+        ctx.drawImage(tex, sx + dw, y - rad, dw, dw);
+        if (p.kind !== "sun") {
+          const shade = ctx.createRadialGradient(x - rad * 0.38, y - rad * 0.42, rad * 0.08, x + rad * 0.15, y + rad * 0.1, rad);
+          shade.addColorStop(0, "rgba(255,255,255,0.34)");
+          shade.addColorStop(0.42, "rgba(255,255,255,0)");
+          shade.addColorStop(1, "rgba(0,0,0,0.72)");
+          ctx.fillStyle = shade;
+          ctx.fillRect(x - rad, y - rad, dw, dw);
+        }
+        ctx.restore();
+        if (p.kind === "earth" || p.kind === "venus") {
+          ctx.strokeStyle = p.kind === "earth" ? "rgba(150, 200, 255, 0.45)" : "rgba(255, 220, 150, 0.35)";
+          ctx.lineWidth = Math.max(2, rad * 0.12);
+          ctx.beginPath(); ctx.arc(x, y, rad + ctx.lineWidth * 0.35, 0, Math.PI * 2); ctx.stroke();
+        }
+      }
       function drawMap() {
         ctx.save();
         ctx.lineWidth = 1.25;
@@ -1915,25 +2094,8 @@
         for (const o of visible) {
           const pr = projectCam(o.c.x, -o.c.y, o.c.z, camRoll);
           const rad = Math.max(1.6, o.p.r * (FOV / o.c.z));
-          const g = ctx.createRadialGradient(pr.x - rad * 0.3, pr.y - rad * 0.35, rad * 0.15, pr.x, pr.y, rad);
-          g.addColorStop(0, "#fff");
-          g.addColorStop(0.45, o.p.color);
-          g.addColorStop(1, "#12151c");
-          ctx.fillStyle = g;
-          ctx.beginPath();
-          ctx.arc(pr.x, pr.y, rad, 0, Math.PI * 2);
-          ctx.fill();
-          if (o.p.rings) {
-            ctx.save();
-            ctx.translate(pr.x, pr.y);
-            ctx.scale(1, 0.38);
-            ctx.beginPath();
-            ctx.arc(0, 0, rad * 2.15, 0, Math.PI * 2);
-            ctx.arc(0, 0, rad * 1.35, 0, Math.PI * 2, true);
-            ctx.fillStyle = "rgba(236, 214, 170, 0.45)";
-            ctx.fill();
-            ctx.restore();
-          }
+          if (o.p.rings) drawRings(pr.x, pr.y, rad);
+          drawPlanet(o.p, pr.x, pr.y, rad);
           if (rad > 7) {
             ctx.fillStyle = "rgba(236, 242, 255, 0.92)";
             ctx.font = "11px ui-monospace, monospace";
