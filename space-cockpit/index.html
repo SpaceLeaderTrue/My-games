@@ -1670,6 +1670,8 @@
         const shown = navTarget || near;
         const shownD = Math.hypot(shown.x - ship.x, shown.y - ship.y, shown.z - ship.z);
         if (mapFix) mapFix.textContent = shown.name + "  " + Math.max(0, shownD - shown.r).toFixed(0);
+        poseHist.push({ x: ship.x, y: ship.y, z: ship.z, q: orient.slice(), roll: camRoll });
+        if (poseHist.length > 36) poseHist.shift();
       }
 
       function moveStars(dt) {
@@ -1855,11 +1857,23 @@
           s.z = ship.z + fwd.z * ahead + right.z * rx + up.z * ry;
         }
       }
+      const poseHist = [];
+      const TRAIL_FROM = 1.05; // above coast (0.62) and neutral glide (0.42)
       function drawStarField() {
         const spd = driveSpeed();
-        const fwd = forwardWorld();
-        const trail = (16 + spd * 72) * (reverse ? -1 : 1);
+        const excess = Math.max(0, spd - TRAIL_FROM);
+        const trailPoses = [];
+        if (excess > 0.02 && poseHist.length > 2) {
+          const span = Math.min(poseHist.length, Math.round(8 + excess * 7));
+          const samples = 7;
+          for (let s = 0; s < samples; s++) {
+            const idx = poseHist.length - 1 - Math.round(s * (span - 1) / (samples - 1));
+            const pose = poseHist[Math.max(0, idx)];
+            trailPoses.push({ x: pose.x, y: pose.y, z: pose.z, inv: qConj(pose.q), roll: pose.roll });
+          }
+        }
         ctx.lineCap = "round";
+        ctx.lineJoin = "round";
         for (let i = 0; i < FIELD.length; i++) {
           const s = FIELD[i];
           const c = worldToCam(s);
@@ -1867,23 +1881,25 @@
           const p = projectCam(c.x, -c.y, c.z, camRoll);
           if (p.x < -40 || p.y < -40 || p.x > w + 40 || p.y > h + 40) continue;
           const rad = Math.max(0.7, Math.min(5.5, s.r * FOV / c.z));
-          if (spd > 0.12 && c.z < 2800) {
-            const len = Math.min(Math.abs(trail), c.z * 0.62) * Math.sign(trail);
-            const tail = worldToCam({
-              x: s.x + fwd.x * len,
-              y: s.y + fwd.y * len,
-              z: s.z + fwd.z * len,
-            });
-            if (tail.z > 1) {
-              const tp = projectCam(tail.x, -tail.y, tail.z, camRoll);
-              const alpha = Math.min(0.8, (0.12 + spd * 0.14) * Math.min(1, 900 / c.z));
-              ctx.strokeStyle = s.warm ? `rgba(255,214,160,${alpha})` : `rgba(214,228,255,${alpha})`;
-              ctx.lineWidth = Math.max(0.7, rad * 0.7);
-              ctx.beginPath();
-              ctx.moveTo(tp.x, tp.y);
-              ctx.lineTo(p.x, p.y);
-              ctx.stroke();
+          if (trailPoses.length && c.z < 2800) {
+            const alpha = Math.min(0.85, excess * 0.22 * Math.min(1, 1100 / c.z));
+            ctx.strokeStyle = s.warm ? `rgba(255,214,160,${alpha})` : `rgba(214,228,255,${alpha})`;
+            ctx.lineWidth = Math.max(0.7, rad * 0.65);
+            ctx.beginPath();
+            let started = false;
+            for (let k = trailPoses.length - 1; k >= 0; k--) {
+              const pose = trailPoses[k];
+              const cam = qRotate(pose.inv, {
+                x: s.x - pose.x,
+                y: s.y - pose.y,
+                z: s.z - pose.z,
+              });
+              if (cam.z < 1.5) { started = false; continue; }
+              const tp = projectCam(cam.x, -cam.y, cam.z, pose.roll);
+              if (!started) { ctx.moveTo(tp.x, tp.y); started = true; }
+              else ctx.lineTo(tp.x, tp.y);
             }
+            if (started) ctx.stroke();
           }
           ctx.fillStyle = s.warm ? "#ffe1b0" : "#eef3ff";
           ctx.beginPath();
