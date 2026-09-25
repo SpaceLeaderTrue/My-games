@@ -17,4 +17,4 @@ Open [`space-cockpit/index.html`](space-cockpit/index.html).
 
 A small glass garden. Drop a light, and two of the same kind grow into the next. Meet the sun to open the next jar: a party of sweets, then a sea of happy creatures. The garden remembers your record, your herbarium, and which levels you have opened. When a run ends, a name joins one shared score list.
 
-Play it at [svotosad.surge.sh](https://svotosad.surge.sh/). The same page is in [`svetosad/index.html`](svetosad/index.html). Aim with a finger or the arrow keys, release or press Space to drop. After the jar fills, one more garden is a single tap.
+Play it at [svotosad-garden.surge.sh](https://svotosad-garden.surge.sh/). The same page is in [`svetosad/index.html`](svetosad/index.html). Aim with a finger or the arrow keys, release or press Space to drop. After the jar fills, one more garden is a single tap.
