@@ -49,11 +49,11 @@
     { id: "meadow", name: "Солнечная поляна", line: "Тёплый ветер пахнет мёдом", x: -150, z: -540, y: 38, route: true },
     { id: "blossom", name: "Цветущая опушка", line: "Лепестки догоняют крыло", x: 40, z: -350, y: 42, route: true },
     { id: "forest", name: "Изумрудный лес", line: "Свет ложится пятнами на мох", x: 220, z: -180, y: 52, route: true },
-    { id: "falls-top", name: "Кромка водопадов", line: "Река срывается в небо", x: 250, z: 8, y: 102, route: true },
+    { id: "falls-top", name: "Кромка водопадов", line: "Река срывается в небо", x: 250, z: 8, y: 104, route: true },
     { id: "falls-low", name: "Лес под водопадами", line: "Радуга живёт в брызгах", x: 230, z: 155, y: 36, route: true },
-    { id: "gorge-gate", name: "Врата ущелья", line: "Стены из тёплого камня", x: 110, z: 292, y: 34, route: true },
-    { id: "gorge-heart", name: "Сердце ущелья", line: "Узкое небо над рекой", x: -70, z: 372, y: 26, route: true },
-    { id: "river", name: "Река в камне", line: "Вода точит рыжий каньон", x: -250, z: 318, y: 24, route: true },
+    { id: "gorge-gate", name: "Врата ущелья", line: "Стены из тёплого камня", x: 160, z: 270, y: 36, route: true },
+    { id: "gorge-heart", name: "Сердце ущелья", line: "Узкое небо над рекой", x: -70, z: 372, y: 28, route: true },
+    { id: "river", name: "Река в камне", line: "Каньон открывается к озеру", x: -340, z: 268, y: 92, route: true },
     { id: "lake", name: "Радужное озеро", line: "Зеркало облаков", x: -470, z: 28, y: 40, route: true },
     { id: "peaks", name: "Облачные вершины", line: "Крыло касается облака", x: -200, z: 630, y: 176, route: true },
     { id: "coast", name: "Золотой берег", line: "Море держит солнце", x: 430, z: -440, y: 34, route: true },
@@ -496,7 +496,7 @@
     snapPlace(PLACES[10], function (h) { return h > 5.2 && h < 8.2; });
     snapPlace(PLACES[11], function (h) { return h > 12 && h < 30; });
     const peak = PLACES[9];
-    peak.y = Math.max(peak.y, peak.ground + 38);
+    peak.y = Math.max(peak.ground + 18, WATER_Y + 16);
 
     const falls = [];
     const fallX = [60, 145, 230, 315, 400];

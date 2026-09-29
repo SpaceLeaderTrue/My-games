@@ -21,4 +21,4 @@ Open-sky flight over a colorful country. Golden rings lead through a gorge, wate
 
 Open [`bird-flight/index.html`](bird-flight/index.html).
 
-WASD or arrows steer, Space or a held mouse button flaps, Shift dives. On a phone, use the stick and the flap button.
+WASD or arrows steer, Space or a held mouse button flaps, Shift accelerates. On a phone, use the stick and the flap button. The minimap numbers the rings and draws a guide to the next one.

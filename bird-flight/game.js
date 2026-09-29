@@ -787,7 +787,7 @@
     }));
     scene.add(line);
 
-    const ringGeo = new THREE.TorusGeometry(8.2, 0.32, 8, 28);
+    const ringGeo = new THREE.TorusGeometry(12, 0.42, 8, 32);
     function addRing(place, index, onRoute) {
       const next = onRoute ? route[(index + 1) % route.length] : place;
       const yaw = onRoute ? Math.atan2(next.x - place.x, next.z - place.z) : 0;
@@ -1155,10 +1155,9 @@
       sx += clamp(dragX / 80, -1, 1);
       sy += clamp(-dragY / 80, -1, 1);
     }
-    const dive = keys.has("ShiftLeft") || keys.has("ShiftRight") ? 1 : 0;
-    if (dive) sy -= 0.65;
+    const boost = keys.has("ShiftLeft") || keys.has("ShiftRight") ? 1 : 0;
     const flap = (flapHeld || keys.has("Space") || joy.flap) ? 1 : 0;
-    return { sx: clamp(sx, -1, 1), sy: clamp(sy, -1, 1), flap: flap, dive: dive };
+    return { sx: clamp(sx, -1, 1), sy: clamp(sy, -1, 1), flap: flap, boost: boost };
   }
 
   function stepFlight(dt, input) {
@@ -1172,9 +1171,10 @@
     const glidePitch = -0.16;
     const err = player.pitch - glidePitch;
     const efficiency = Math.exp(-err * err * 3.2);
-    const targetSpeed = 21 + input.flap * 8 + Math.max(0, -player.pitch) * 16 + input.dive * 8;
-    player.speed += (targetSpeed - player.speed) * (1 - Math.exp(-1.35 * dt));
-    player.speed = clamp(player.speed, 12, 48);
+    const targetSpeed = 21 + input.flap * 8 + Math.max(0, -player.pitch) * 16 + input.boost * 34;
+    const accel = input.boost ? 3.4 : 1.35;
+    player.speed += (targetSpeed - player.speed) * (1 - Math.exp(-accel * dt));
+    player.speed = clamp(player.speed, 12, input.boost ? 72 : 48);
 
     const flapRate = input.flap > 0.2 ? 13 : 5.2 + player.speed * 0.05;
     player.flapPhase += dt * flapRate;
@@ -1323,16 +1323,21 @@
       ring.pivot.position.y = ring.base + Math.sin(t * 1.4 + i) * 0.45;
       if (ring.done) {
         ring.torus.material.color.setHex(ring.onRoute ? 0x9ff3c9 : 0xe7d6ff);
-        ring.beam.material.opacity = 0.05;
+        ring.beam.material.opacity = 0.04;
       } else if (isNext) {
-        ring.torus.material.color.setHex(0xfff1b8);
-        ring.beam.material.opacity = 0.16;
+        ring.torus.material.color.setHex(0xfff6c8);
+        ring.beam.material.opacity = 0.34;
+        ring.torus.scale.setScalar(pulse * 1.08);
+      } else {
+        ring.torus.material.color.setHex(ring.onRoute ? 0xffd56a : 0xc9a6ff);
+        ring.beam.material.opacity = ring.onRoute ? 0.1 : 0.06;
       }
       if (mode !== "play" || ring.done) continue;
       const dx = player.x - ring.place.x;
-      const dy = player.y - ring.place.y;
+      const dy = player.y - ring.pivot.position.y;
       const dz = player.z - ring.place.z;
-      if (dx * dx + dy * dy + dz * dz < 11 * 11) {
+      const near = dx * dx + dz * dz < 20 * 20 && dy * dy < 18 * 18;
+      if (near) {
         ring.done = true;
         if (ring.onRoute && routeDone === 0) lapStarted = now;
         if (audio) audio.chime(ring.onRoute ? 523 : 392, ring.onRoute ? 784 : 620);
@@ -1358,7 +1363,9 @@
     placeCountEl.textContent = "места " + found + "/" + places.length;
     if (next) {
       const d = Math.hypot(player.x - next.place.x, player.z - next.place.z);
-      nextChip.textContent = "далее · " + next.place.name + " · " + Math.round(d) + " м";
+      const dy = next.pivot.position.y - player.y;
+      const alt = dy > 14 ? " · выше" : dy < -14 ? " · ниже" : "";
+      nextChip.textContent = "далее · " + (next.index + 1) + " " + next.place.name + " · " + Math.round(d) + " м" + alt;
     } else {
       const grove = places.find(function (p) { return p.id === "grove"; });
       nextChip.textContent = grove.found ? "маршрут пройден" : "в стороне · Сумеречная роща";
@@ -1454,12 +1461,62 @@
     ctx.drawImage(mapBase, 0, 0, S, S);
     function mx(x) { return ((x + W.HALF) / W.SPAN) * S; }
     function my(z) { return (1 - (z + W.HALF) / W.SPAN) * S; }
+    const nextRing = nearestRouteRing();
+    if (nextRing) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(255, 248, 214, 0.95)";
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(mx(player.x), my(player.z));
+      ctx.lineTo(mx(nextRing.place.x), my(nextRing.place.z));
+      ctx.stroke();
+      ctx.restore();
+    }
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.006);
     for (let i = 0; i < rings.length; i++) {
       const ring = rings[i];
+      const x = mx(ring.place.x);
+      const y = my(ring.place.z);
+      const isNext = ring === nextRing;
       ctx.beginPath();
-      ctx.fillStyle = ring.onRoute ? (ring.done ? "#9ff3c9" : "#ffd56a") : "#d7b6ff";
-      ctx.arc(mx(ring.place.x), my(ring.place.z), ring.onRoute ? 4.5 : 3.5, 0, TAU);
-      ctx.fill();
+      if (!ring.onRoute) {
+        ctx.fillStyle = ring.done ? "#efe4ff" : "#d7b6ff";
+        ctx.arc(x, y, 5, 0, TAU);
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "#fff";
+        ctx.stroke();
+      } else if (ring.done) {
+        ctx.fillStyle = "#9ff3c9";
+        ctx.arc(x, y, 5, 0, TAU);
+        ctx.fill();
+      } else if (isNext) {
+        ctx.fillStyle = "rgba(255, 236, 170, " + (0.35 + pulse * 0.4) + ")";
+        ctx.arc(x, y, 12 + pulse * 3, 0, TAU);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.fillStyle = "#ffe28a";
+        ctx.arc(x, y, 8, 0, TAU);
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#fffaf0";
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = "#ffd56a";
+        ctx.arc(x, y, 6.5, 0, TAU);
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "rgba(90, 50, 10, 0.55)";
+        ctx.stroke();
+      }
+      if (ring.onRoute) {
+        ctx.fillStyle = ring.done ? "#145c45" : "#3a2410";
+        ctx.font = "bold 12px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(ring.index + 1), x, y + 0.5);
+      }
     }
     ctx.translate(mx(player.x), my(player.z));
     ctx.rotate(player.yaw);
@@ -1611,7 +1668,7 @@
     windFilter.type = "lowpass";
     windFilter.frequency.value = 400;
     const windGain = ctx.createGain();
-    windGain.gain.value = 0.02;
+    windGain.gain.value = 0;
     windSrc.connect(windFilter);
     windFilter.connect(windGain);
     windGain.connect(master);
@@ -1633,70 +1690,33 @@
     fallGain.connect(master);
     fallSrc.start();
 
-    const padGain = ctx.createGain();
-    padGain.gain.value = 0.05;
-    const padFilter = ctx.createBiquadFilter();
-    padFilter.type = "lowpass";
-    padFilter.frequency.value = 640;
-    padFilter.Q.value = 0.4;
-    padFilter.connect(padGain);
-    padGain.connect(master);
-    [196, 246.94, 293.66, 392].forEach(function (freq, i) {
-      const o = ctx.createOscillator();
-      o.type = i % 2 ? "triangle" : "sine";
-      o.frequency.value = freq;
-      const g = ctx.createGain();
-      g.gain.value = i === 0 ? 0.34 : 0.16;
-      o.connect(g);
-      g.connect(padFilter);
-      o.start();
-    });
-    const breath = ctx.createOscillator();
-    breath.frequency.value = 0.07;
-    const breathAmt = ctx.createGain();
-    breathAmt.gain.value = 0.012;
-    breath.connect(breathAmt);
-    breathAmt.connect(padGain.gain);
-    breath.start();
-    const air = ctx.createBufferSource();
-    air.buffer = buffer;
-    air.loop = true;
-    const airFilter = ctx.createBiquadFilter();
-    airFilter.type = "lowpass";
-    airFilter.frequency.value = 420;
-    const airGain = ctx.createGain();
-    airGain.gain.value = 0.025;
-    air.connect(airFilter);
-    airFilter.connect(airGain);
-    airGain.connect(master);
-    air.start();
-
     function chirp() {
-      const wait = 2.4 + Math.random() * 4.2;
+      const wait = 1.3 + Math.random() * 2.6;
       const t = ctx.currentTime + wait;
-      const f0 = 1700 + Math.random() * 1200;
+      const f0 = 2200 + Math.random() * 1600;
       const pan = ctx.createStereoPanner();
-      pan.pan.value = Math.random() * 1.2 - 0.6;
+      pan.pan.value = Math.random() * 1.4 - 0.7;
       pan.connect(master);
-      function note(time, freq, amp) {
+      const steps = 2 + Math.floor(Math.random() * 3);
+      for (let n = 0; n < steps; n++) {
+        const time = t + n * 0.11;
+        const freq = f0 * (n % 2 ? 1.25 : 1) * (0.94 + Math.random() * 0.08);
         const o = ctx.createOscillator();
         const g = ctx.createGain();
         o.type = "sine";
         o.frequency.setValueAtTime(freq, time);
-        o.frequency.exponentialRampToValueAtTime(freq * (0.86 + Math.random() * 0.1), time + 0.11);
+        o.frequency.exponentialRampToValueAtTime(Math.max(180, freq * (0.82 + Math.random() * 0.22)), time + 0.09);
         g.gain.setValueAtTime(0.0001, time);
-        g.gain.exponentialRampToValueAtTime(amp, time + 0.018);
-        g.gain.exponentialRampToValueAtTime(0.0001, time + 0.15);
+        g.gain.exponentialRampToValueAtTime(0.045, time + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.0001, time + 0.1);
         o.connect(g);
         g.connect(pan);
         o.start(time);
-        o.stop(time + 0.17);
+        o.stop(time + 0.12);
       }
-      note(t, f0, 0.028);
-      if (Math.random() > 0.3) note(t + 0.13, f0 * (1.12 + Math.random() * 0.18), 0.02);
       setTimeout(function () {
         try { pan.disconnect(); } catch (err) {}
-      }, (wait + 0.6) * 1000);
+      }, (wait + 0.8) * 1000);
       setTimeout(chirp, wait * 1000);
     }
     chirp();
@@ -1705,8 +1725,8 @@
       ctx: ctx,
       master: master,
       wind: function (speed) {
-        windGain.gain.setTargetAtTime(clamp((speed - 8) / 80, 0.01, 0.12), ctx.currentTime, 0.2);
-        windFilter.frequency.setTargetAtTime(280 + speed * 18, ctx.currentTime, 0.2);
+        windGain.gain.setTargetAtTime(clamp((speed - 22) / 160, 0, 0.045), ctx.currentTime, 0.25);
+        windFilter.frequency.setTargetAtTime(320 + speed * 10, ctx.currentTime, 0.25);
       },
       falls: function (amt) {
         fallGain.gain.setTargetAtTime(amt * 0.08, ctx.currentTime, 0.25);
