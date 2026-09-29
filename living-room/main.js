@@ -806,7 +806,7 @@
   const LOOK = 0.0017;
 
   function lookBy(dx, dy) {
-    walk.yaw += dx * LOOK;
+    walk.yaw -= dx * LOOK;
     walk.pitch -= dy * LOOK;
     walk.pitch = Math.max(-1.15, Math.min(1.15, walk.pitch));
     lookFromWalk();
