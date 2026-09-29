@@ -4,10 +4,10 @@
   const W = 4.05;
   const D = 5.45;
   const H = 2.62;
-  const SOFA = { x0: 1.38, x1: 3.93, z0: 1.78, z1: 2.9 };
-  const TABLE = { x: 1.12, z: 1.16, r: 0.46, top: 0.76 };
+  const SOFA = { x0: 0.22, x1: 2.77, z0: 1.78, z1: 2.9 };
+  const TABLE = { x: 1.7, z: 1.14, r: 0.46, top: 0.76 };
   const UNIT_Z1 = 4.02;
-  const SCREEN = { x: 2.02, z: 4.96, w: 2.16, h: 1.26, bottom: 0.72 };
+  const SCREEN = { x: 2.25, z: 4.96, w: 2.16, h: 1.26, bottom: 0.72 };
   const WIN = { x0: 0.18, x1: 2.4, y0: 0.78, y1: 2.18 };
 
   const canvas = document.getElementById("view");
@@ -94,7 +94,7 @@
       c.height = 256;
       const g = c.getContext("2d");
       const local = mulberry32(11);
-      g.fillStyle = "#e3d5c2";
+      g.fillStyle = "#e6d3b8";
       g.fillRect(0, 0, 256, 256);
       for (let i = 0; i < 3500; i++) {
         const v = 190 + Math.floor(local() * 50);
@@ -211,7 +211,10 @@
     const o = opt || {};
     mesh.castShadow = o.cast !== false;
     mesh.receiveShadow = o.receive !== false;
-    if (o.name) mesh.name = o.name;
+    if (o.name) {
+      mesh.name = o.name;
+      mesh.userData.label = o.name;
+    }
     parent.add(mesh);
     return mesh;
   }
@@ -274,8 +277,8 @@
     const ceiling = box(room, ceilMat, W + 0.28, 0.08, D + 0.28, W / 2, H + 0.04, D / 2, { cast: false, receive: false });
     ceiling.userData.label = "Потолок";
 
-    box(room, wallPaint, 0.12, H, D, -0.06, H / 2, D / 2, { name: "Левая стена" });
-    box(room, floralMat, 0.12, H, D, W + 0.06, H / 2, D / 2, { name: "Стена с обоями" });
+    box(room, floralMat, 0.12, H, D, -0.06, H / 2, D / 2, { name: "Стена с обоями" });
+    box(room, wallPaint, 0.12, H, D, W + 0.06, H / 2, D / 2, { name: "Стена со стенкой" });
     box(room, wallPaint, W, H, 0.12, W / 2, H / 2, D + 0.06, { name: "Дальняя стена" });
 
     const south = group(room, "Стена у окна");
@@ -339,7 +342,7 @@
   }
 
   function buildCurtain(room) {
-    const g = group(room, "Штора", 2.46, 0, 0.1);
+    const g = group(room, "Штора", 0.32, 0, 0.12);
     const cloth = mat({ color: 0xe6dccb, roughness: 0.9, side: THREE.DoubleSide });
     for (let i = 0; i < 6; i++) {
       box(g, cloth, 0.055, 1.9, 0.035, i * 0.04, 1.22, Math.sin(i * 1.3) * 0.03);
@@ -379,44 +382,48 @@
     sections.forEach((s) => {
       const zw = s.z1 - s.z0;
       const zc = (s.z0 + s.z1) / 2;
-      box(g, woodDark, depth - 0.04, 2.32, zw - 0.04, x - 0.02, 1.24, zc, { cast: false });
+      box(g, woodDark, depth - 0.04, 2.32, zw - 0.04, ux(x - 0.02), 1.24, zc, { cast: false });
       if (s.kind === "tall") {
-        box(g, cream, depth, 2.42, zw, x, 1.25, zc);
-        box(g, woodMat, 0.012, 2.2, 0.008, depth - 0.01, 1.25, zc, { cast: false });
+        box(g, cream, depth, 2.42, zw, ux(x), 1.25, zc);
+        box(g, woodMat, 0.012, 2.2, 0.008, ux(depth - 0.01), 1.25, zc, { cast: false });
         return;
       }
-      box(g, woodMat, depth, 0.42, zw, x, 0.29, zc);
-      box(g, woodDark, depth - 0.02, 0.08, zw, x, 0.04, zc, { cast: false });
-      box(g, woodMat, 0.02, 2.4, 0.02, x, 1.24, s.z0);
-      box(g, woodMat, 0.02, 2.4, 0.02, x, 1.24, s.z1);
+      box(g, woodMat, depth, 0.42, zw, ux(x), 0.29, zc);
+      box(g, woodDark, depth - 0.02, 0.08, zw, ux(x), 0.04, zc, { cast: false });
+      box(g, woodMat, 0.02, 2.4, 0.02, ux(x), 1.24, s.z0);
+      box(g, woodMat, 0.02, 2.4, 0.02, ux(x), 1.24, s.z1);
       if (s.kind === "tv") {
         const tvW = Math.min(0.92, zw - 0.16);
-        box(g, metal, 0.045, 0.56, tvW + 0.04, depth - 0.03, 1.08, zc);
+        box(g, metal, 0.045, 0.56, tvW + 0.04, ux(depth - 0.03), 1.08, zc);
         const display = mat({ color: 0x101820, emissive: 0x1b3044, emissiveIntensity: 0.55, roughness: 0.25, metalness: 0.1 });
-        box(g, display, 0.02, 0.48, tvW, depth + 0.01, 1.08, zc, { cast: false });
-        box(g, white, depth - 0.04, 0.72, zw - 0.06, x, 2.05, zc);
+        box(g, display, 0.02, 0.48, tvW, ux(depth + 0.01), 1.08, zc, { cast: false });
+        box(g, white, depth - 0.04, 0.72, zw - 0.06, ux(x), 2.05, zc);
         shelf(g, woodMat, 1.5, s.z0 + 0.04, s.z1 - 0.04, depth);
         return;
       }
       [0.62, 1.02, 1.4, 1.82, 2.2].forEach((y) => shelf(g, woodMat, y, s.z0 + 0.03, s.z1 - 0.03, depth));
       if (s.z0 < 2) {
-        box(g, white, depth - 0.05, 0.16, zw - 0.08, x + 0.01, 1.58, zc);
-        box(g, white, depth - 0.05, 0.16, zw - 0.08, x + 0.01, 1.76, zc);
+        box(g, white, depth - 0.05, 0.16, zw - 0.08, ux(x + 0.01), 1.58, zc);
+        box(g, white, depth - 0.05, 0.16, zw - 0.08, ux(x + 0.01), 1.76, zc);
         books(g, bookMats, 0.64, s.z0 + 0.05, s.z1 - 0.05, 0.34, depth);
         books(g, bookMats, 1.04, s.z0 + 0.05, s.z1 - 0.05, 0.32, depth);
         books(g, bookMats, 1.96, s.z0 + 0.08, s.z1 - 0.08, 0.28, depth);
       } else {
-        box(g, white, depth - 0.04, 0.58, zw - 0.08, x, 2.12, zc);
+        box(g, white, depth - 0.04, 0.58, zw - 0.08, ux(x), 2.12, zc);
         books(g, bookMats, 0.64, s.z0 + 0.05, s.z1 - 0.05, 0.34, depth);
         books(g, bookMats, 1.04, s.z0 + 0.05, s.z1 - 0.05, 0.3, depth);
         books(g, bookMats, 1.42, s.z0 + 0.05, s.z1 - 0.05, 0.28, depth);
       }
     });
-    box(g, woodMat, depth, 0.04, UNIT_Z1 - 0.16, x, 2.46, (0.16 + UNIT_Z1) / 2, { cast: false });
+    box(g, woodMat, depth, 0.04, UNIT_Z1 - 0.16, ux(x), 2.46, (0.16 + UNIT_Z1) / 2, { cast: false });
+  }
+
+  function ux(x) {
+    return W - x;
   }
 
   function shelf(parent, material, y, z0, z1, depth) {
-    box(parent, material, depth - 0.06, 0.018, z1 - z0, depth / 2, y, (z0 + z1) / 2, { cast: false });
+    box(parent, material, depth - 0.06, 0.018, z1 - z0, ux(depth / 2), y, (z0 + z1) / 2, { cast: false });
   }
 
   function books(parent, materials, y, z0, z1, maxH, depth) {
@@ -426,7 +433,7 @@
       if (z + bw > z1) break;
       const bh = maxH * (0.78 + rand() * 0.22);
       const m = materials[Math.floor(rand() * materials.length)];
-      box(parent, m, 0.2, bh, bw, depth / 2 + 0.02, y + bh / 2, z + bw / 2, { cast: false });
+      box(parent, m, 0.2, bh, bw, ux(depth / 2 + 0.02), y + bh / 2, z + bw / 2, { cast: false });
       z += bw + 0.004;
     }
   }
@@ -436,22 +443,22 @@
     const radius = 0.76;
     const height = 2.46;
     const mesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(radius, radius, height, 36, 1, false, Math.PI, Math.PI / 2),
+      new THREE.CylinderGeometry(radius, radius, height, 36, 1, false, Math.PI / 2, Math.PI / 2),
       cream
     );
-    mesh.position.set(W - 0.004, 0.06 + height / 2, D - 0.004);
+    mesh.position.set(0.004, 0.06 + height / 2, D - 0.004);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     g.add(mesh);
     const lip = new THREE.Mesh(
-      new THREE.CylinderGeometry(radius + 0.02, radius + 0.02, 0.045, 36, 1, false, Math.PI, Math.PI / 2),
+      new THREE.CylinderGeometry(radius + 0.02, radius + 0.02, 0.045, 36, 1, false, Math.PI / 2, Math.PI / 2),
       woodMat
     );
-    lip.position.set(W - 0.004, 0.06 + height + 0.01, D - 0.004);
+    lip.position.set(0.004, 0.06 + height + 0.01, D - 0.004);
     lip.castShadow = true;
     g.add(lip);
-    const hx = W + Math.sin(Math.PI * 1.25) * (radius + 0.01);
-    const hz = D + Math.cos(Math.PI * 1.25) * (radius + 0.01);
+    const hx = Math.sin(Math.PI * 0.75) * (radius + 0.01);
+    const hz = D + Math.cos(Math.PI * 0.75) * (radius + 0.01);
     box(g, metal, 0.012, 0.16, 0.035, hx, 1.15, hz);
     box(g, metal, 0.012, 0.16, 0.035, hx, 1.55, hz);
   }
@@ -526,17 +533,17 @@
   }
 
   function buildArt(room, textures, gold, dark) {
-    painting(room, "Натюрморт", gold, textures.stillLife, W - 0.03, 1.62, 3.05, 0.52, 0.7);
-    painting(room, "Пейзаж", dark, textures.landscape, W - 0.03, 1.5, 2.05, 0.68, 0.48);
-    painting(room, "Маленькая картина", dark, textures.smallPic, W - 0.03, 1.48, 3.8, 0.26, 0.32);
+    painting(room, "Натюрморт", gold, textures.stillLife, 0.03, 1.62, 3.05, 0.52, 0.7);
+    painting(room, "Пейзаж", dark, textures.landscape, 0.03, 1.5, 2.05, 0.68, 0.48);
+    painting(room, "Маленькая картина", dark, textures.smallPic, 0.03, 1.48, 3.8, 0.26, 0.32);
     const signMat = mat({ map: textures.sign, roughness: 0.8 });
-    const sign = box(room, signMat, 0.02, 0.32, 0.2, W - 0.02, 1.22, 0.72, { name: "Табличка" });
+    const sign = box(room, signMat, 0.02, 0.32, 0.2, 0.02, 1.22, 0.72, { name: "Табличка" });
     sign.userData.label = "Табличка Keep Calm";
   }
 
   function painting(room, label, frameMat, artTex, x, y, z, w, h) {
     const g = group(room, label, x, y, z);
-    g.rotation.y = -Math.PI / 2;
+    g.rotation.y = Math.PI / 2;
     const art = mat({ map: artTex, roughness: 0.85 });
     const ft = 0.03;
     box(g, frameMat, w + ft * 2, ft, 0.03, 0, h / 2 + ft / 2, 0, { cast: false });
@@ -547,7 +554,7 @@
   }
 
   function buildChandelier(room, shadeMat, metal) {
-    const g = group(room, "Люстра", 1.9, H, 2.35);
+    const g = group(room, "Люстра", 1.7, H, 2.35);
     const brass = mat({ color: 0xe6dcc8, roughness: 0.45, metalness: 0.25 });
     cyl(g, brass, 0.012, 0.012, 0.34, 8, 0, -0.17, 0);
     cyl(g, brass, 0.04, 0.04, 0.08, 10, 0, -0.4, 0);
@@ -587,12 +594,12 @@
     lamp.add(shade);
 
     const radMat = mat({ color: 0xf3f3f0, roughness: 0.55, metalness: 0.15 });
-    const rad = group(room, "Батарея у окна", W - 0.07, 0.36, 0.85);
+    const rad = group(room, "Батарея у окна", 0.07, 0.36, 0.85);
     for (let i = 0; i < 10; i++) box(rad, radMat, 0.03, 0.5, 0.07, 0, 0, -0.4 + i * 0.09, { cast: false });
   }
 
   function buildPerson(room) {
-    const g = group(room, "Человек 175 см", 0.95, 0, 3.45);
+    const g = group(room, "Человек 175 см", 3.15, 0, 3.2);
     const body = mat({ color: 0x6e90b8, roughness: 0.55, transparent: true, opacity: 0.9 });
     const capsule = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 1.39, 4, 12), body);
     capsule.position.y = 0.875;
@@ -715,17 +722,17 @@
   sun.shadow.bias = -0.00035;
   scene.add(sun);
   scene.add(sun.target);
-  const fill = new THREE.DirectionalLight(0xfff6ee, 0.85);
+  const fill = new THREE.DirectionalLight(0xfff6ee, 1.25);
   fill.position.set(-1.5, 3.2, 4);
   scene.add(fill);
 
   const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.05, 80);
   const views = {
-    window: { pos: [1.05, 1.42, 0.42], target: [2.15, 1.15, 3.3] },
-    sofa: { pos: [2.85, 1.08, 1.42], target: [2.05, 1.2, 4.5] },
-    wall: { pos: [1.35, 1.38, 1.05], target: [3.7, 1.25, 4.15] },
-    back: { pos: [2.1, 1.55, 5.15], target: [1.8, 1.05, 1.6] },
-    top: { pos: [2.02, 7.4, 0.15], target: [2.02, 0, 2.7] },
+    window: { pos: [2.55, 1.45, 0.48], target: [1.45, 1.12, 3.35] },
+    sofa: { pos: [0.72, 1.08, 1.38], target: [1.35, 1.15, 4.55] },
+    wall: { pos: [1.85, 1.4, 1.15], target: [0.2, 1.2, 3.4] },
+    back: { pos: [3.25, 1.55, 4.05], target: [1.35, 1.0, 0.7] },
+    top: { pos: [2.05, 5.6, 0.15], target: [2.05, 0.4, 3.15] },
   };
 
   const target = new THREE.Vector3();
@@ -774,8 +781,8 @@
   const blockers = [
     { minX: SOFA.x0 - 0.05, maxX: SOFA.x1 + 0.05, minZ: SOFA.z0 - 0.05, maxZ: SOFA.z1 + 0.05 },
     { minX: TABLE.x - TABLE.r, maxX: TABLE.x + TABLE.r, minZ: TABLE.z - TABLE.r, maxZ: TABLE.z + TABLE.r },
-    { minX: 0, maxX: 0.55, minZ: 0.1, maxZ: UNIT_Z1 },
-    { minX: W - 0.8, maxX: W, minZ: D - 0.8, maxZ: D },
+    { minX: W - 0.55, maxX: W, minZ: 0.1, maxZ: UNIT_Z1 },
+    { minX: 0, maxX: 0.82, minZ: D - 0.82, maxZ: D },
     { minX: SCREEN.x - SCREEN.w / 2, maxX: SCREEN.x + SCREEN.w / 2, minZ: SCREEN.z - 0.25, maxZ: SCREEN.z + 0.35 },
   ];
 
@@ -848,6 +855,7 @@
     if (walk.on) toggleWalk(false);
     const view = views[name];
     placeCamera(view.pos, view.target, false);
+    applyShell();
   }
 
   document.getElementById("views").addEventListener("click", (event) => {
@@ -855,16 +863,18 @@
     if (btn) setView(btn.dataset.view);
   });
 
-  document.getElementById("dollhouse").addEventListener("change", (event) => {
-    const on = event.target.checked;
+  function applyShell() {
+    const doll = document.getElementById("dollhouse").checked;
     built.shellMats.forEach((material) => {
-      material.transparent = on;
-      material.opacity = on ? 0.16 : 1;
-      material.depthWrite = !on;
+      material.transparent = doll;
+      material.opacity = doll ? 0.16 : 1;
+      material.depthWrite = !doll;
       material.needsUpdate = true;
     });
-    built.ceiling.visible = !on;
-  });
+    built.ceiling.visible = !(doll || viewName === "top");
+  }
+
+  document.getElementById("dollhouse").addEventListener("change", applyShell);
 
   document.getElementById("person").addEventListener("change", (event) => {
     built.person.visible = event.target.checked;
@@ -978,6 +988,13 @@
     camera,
     target,
     views,
+    finishFly() {
+      fly.t = 1;
+      camera.position.copy(fly.toP);
+      target.copy(fly.toT);
+      camera.lookAt(target);
+      syncSpherical();
+    },
     THREE,
   };
 })();
