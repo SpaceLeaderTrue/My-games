@@ -9,7 +9,7 @@ Open [`bali-loft/index.html`](bali-loft/index.html).
 
 ## Living room
 
-Approximate 3D model of one room, rebuilt from photos. Sizes are estimated, not measured. Drag to look around, or press 1–5 for saved views. Download `gostinaya.obj` from the panel if you want the mesh in Blender.
+Approximate 3D model of one room, rebuilt from photos. Sizes are estimated, not measured. Click the room, then walk with WASD and look with the mouse. Shift runs, Esc releases the mouse, and 1–5 jump to saved spots. Download `gostinaya.obj` from the panel if you want the mesh in Blender.
 
 Open [`living-room/index.html`](living-room/index.html).
 

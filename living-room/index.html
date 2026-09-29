@@ -52,6 +52,21 @@
       display: none; position: fixed; inset: 18px auto auto 18px; z-index: 5;
       background: #fff4f2; color: #6d2218; padding: 12px 14px; border-radius: 12px; max-width: 420px;
     }
+    #play {
+      position: fixed; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    #play .card {
+      background: rgba(28, 24, 20, 0.82); color: #f6f1ea; border-radius: 16px;
+      padding: 16px 18px; text-align: center; max-width: min(420px, calc(100% - 48px));
+    }
+    #play strong { display: block; font-size: 18px; margin-bottom: 6px; }
+    #play span { display: block; font-size: 13px; line-height: 1.45; color: rgba(246, 241, 234, 0.8); }
+    #crosshair {
+      display: none; position: fixed; left: 50%; top: 50%; z-index: 3; width: 10px; height: 10px;
+      margin: -5px 0 0 -5px; border: 2px solid rgba(255, 255, 255, 0.9); border-radius: 50%;
+      pointer-events: none; mix-blend-mode: difference;
+    }
   </style>
 </head>
 <body>
@@ -86,7 +101,6 @@
     <div class="row">
       <label class="check"><input id="dollhouse" type="checkbox" /> Прозрачные стены</label>
       <label class="check"><input id="person" type="checkbox" /> Рост 175 см</label>
-      <label class="check"><input id="walk" type="checkbox" /> Ходить</label>
       <button id="export" type="button">Скачать OBJ</button>
     </div>
     <dl>
@@ -96,9 +110,11 @@
       <dt>Экран</dt><dd>2.16 × 1.26 м</dd>
       <dt>Стол</dt><dd>Ø 0.92 м</dd>
     </dl>
-    <p id="pick">Нажмите на предмет, чтобы узнать, что это.</p>
+    <p id="pick">Клик по комнате захватывает мышь.</p>
   </aside>
-  <div class="hint" id="hint">Левая кнопка — крутить, колесо — ближе, правая — сдвинуть</div>
+  <div id="play"><div class="card"><strong>Кликните по комнате</strong><span>WASD — ходить, мышь — смотреть, Shift — бежать, Esc — отпустить мышь</span></div></div>
+  <div id="crosshair"></div>
+  <div class="hint" id="hint">WASD — ходить, мышь — смотреть, Shift — бежать, Esc — отпустить мышь</div>
   <script src="vendor/three.js"></script>
   <script src="main.js"></script>
 </body>

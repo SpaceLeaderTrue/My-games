@@ -726,7 +726,8 @@
   fill.position.set(-1.5, 3.2, 4);
   scene.add(fill);
 
-  const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.05, 80);
+  const EYE = 1.62;
+  const camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.05, 80);
   const views = {
     window: { pos: [2.55, 1.45, 0.48], target: [1.45, 1.12, 3.35] },
     sofa: { pos: [0.72, 1.08, 1.38], target: [1.35, 1.15, 4.55] },
@@ -737,12 +738,10 @@
 
   const target = new THREE.Vector3();
   let viewName = "window";
-  const orbit = {
-    spherical: new THREE.Spherical(),
-    pan: new THREE.Vector2(),
-    dragging: null,
-    enabled: true,
-  };
+  const orbit = { spherical: new THREE.Spherical(), dragging: false };
+  const walk = { yaw: 0, pitch: 0, keys: {} };
+  const playCard = document.getElementById("play");
+  const crosshair = document.getElementById("crosshair");
 
   function placeCamera(pos, aim, instant) {
     fly.fromP.copy(camera.position);
@@ -753,6 +752,7 @@
     if (instant) {
       camera.position.copy(fly.toP);
       target.copy(fly.toT);
+      camera.lookAt(target);
     }
   }
 
@@ -763,21 +763,33 @@
     toT: new THREE.Vector3(),
     t: 1,
   };
-  placeCamera(views.window.pos, views.window.target, true);
 
-  function syncSpherical() {
-    const offset = camera.position.clone().sub(target);
-    orbit.spherical.setFromVector3(offset);
+  function aimFromDirection() {
+    const dx = target.x - camera.position.x;
+    const dz = target.z - camera.position.z;
+    walk.yaw = Math.atan2(-dx, -dz);
+    walk.pitch = Math.atan2(target.y - camera.position.y, Math.hypot(dx, dz));
+    walk.pitch = Math.max(-1.15, Math.min(1.15, walk.pitch));
   }
-  syncSpherical();
 
-  function applyOrbit() {
-    const offset = new THREE.Vector3().setFromSpherical(orbit.spherical);
-    camera.position.copy(target).add(offset);
+  function lookFromWalk() {
+    const cosPitch = Math.cos(walk.pitch);
+    target.set(
+      camera.position.x - Math.sin(walk.yaw) * cosPitch,
+      camera.position.y + Math.sin(walk.pitch),
+      camera.position.z - Math.cos(walk.yaw) * cosPitch
+    );
     camera.lookAt(target);
   }
 
-  const walk = { on: false, yaw: 0, pitch: 0, keys: {} };
+  placeCamera(
+    [views.window.pos[0], EYE, views.window.pos[2]],
+    views.window.target,
+    true
+  );
+  aimFromDirection();
+  camera.position.y = EYE;
+  lookFromWalk();
   const blockers = [
     { minX: SOFA.x0 - 0.05, maxX: SOFA.x1 + 0.05, minZ: SOFA.z0 - 0.05, maxZ: SOFA.z1 + 0.05 },
     { minX: TABLE.x - TABLE.r, maxX: TABLE.x + TABLE.r, minZ: TABLE.z - TABLE.r, maxZ: TABLE.z + TABLE.r },
@@ -791,71 +803,69 @@
     return !blockers.some((b) => x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ);
   }
 
+  const LOOK = 0.0017;
+
+  function lookBy(dx, dy) {
+    walk.yaw += dx * LOOK;
+    walk.pitch -= dy * LOOK;
+    walk.pitch = Math.max(-1.15, Math.min(1.15, walk.pitch));
+    lookFromWalk();
+  }
+
+  function updateChrome() {
+    const locked = document.pointerLockElement === canvas;
+    const overhead = viewName === "top";
+    playCard.style.display = locked || overhead ? "none" : "flex";
+    crosshair.style.display = locked ? "block" : "none";
+    hint.textContent = overhead
+      ? "Сверху можно крутить левой кнопкой. Выберите точку, чтобы снова ходить"
+      : "WASD — ходить, мышь — смотреть, Shift — бежать, Esc — отпустить мышь";
+    pickEl.textContent = locked ? "Мышь захвачена. Esc отпускает её." : "Клик по комнате захватывает мышь.";
+  }
+
+  canvas.addEventListener("click", () => {
+    if (viewName === "top" || document.pointerLockElement === canvas) return;
+    canvas.requestPointerLock();
+  });
+  document.addEventListener("pointerlockchange", updateChrome);
   canvas.addEventListener("pointerdown", (event) => {
-    if (walk.on) return;
-    orbit.dragging = event.button;
+    if (viewName !== "top" || event.button !== 0) return;
+    orbit.dragging = true;
     canvas.setPointerCapture(event.pointerId);
   });
   canvas.addEventListener("pointerup", () => {
-    orbit.dragging = null;
+    orbit.dragging = false;
   });
   canvas.addEventListener("pointermove", (event) => {
-    if (walk.on && document.pointerLockElement === canvas) {
-      walk.yaw += event.movementX * 0.0022;
-      walk.pitch -= event.movementY * 0.0022;
-      walk.pitch = Math.max(-1.1, Math.min(1.1, walk.pitch));
+    if (document.pointerLockElement === canvas && viewName !== "top") {
+      lookBy(event.movementX, event.movementY);
       return;
     }
-    if (orbit.dragging == null || fly.t < 1) return;
-    syncSpherical();
-    if (orbit.dragging === 0 && !event.shiftKey) {
-      orbit.spherical.theta -= event.movementX * 0.005;
-      orbit.spherical.phi -= event.movementY * 0.005;
-      const eps = 0.08;
-      orbit.spherical.phi = Math.max(eps, Math.min(Math.PI / 2 - 0.03, orbit.spherical.phi));
-    } else {
-      const panX = -event.movementX * orbit.spherical.radius * 0.0011;
-      const panY = event.movementY * orbit.spherical.radius * 0.0011;
-      const dir = new THREE.Vector3();
-      camera.getWorldDirection(dir);
-      const right = new THREE.Vector3().crossVectors(dir, camera.up).normalize();
-      const up = new THREE.Vector3().crossVectors(right, dir).normalize();
-      target.addScaledVector(right, panX);
-      target.addScaledVector(up, panY);
-    }
-    applyOrbit();
+    if (!orbit.dragging || viewName !== "top" || fly.t < 1) return;
+    const offset = camera.position.clone().sub(target);
+    orbit.spherical.setFromVector3(offset);
+    orbit.spherical.theta -= event.movementX * 0.005;
+    orbit.spherical.phi -= event.movementY * 0.005;
+    orbit.spherical.phi = Math.max(0.08, Math.min(Math.PI / 2 - 0.04, orbit.spherical.phi));
+    camera.position.copy(target).add(new THREE.Vector3().setFromSpherical(orbit.spherical));
+    camera.lookAt(target);
   });
-  canvas.addEventListener("wheel", (event) => {
-    if (walk.on) return;
-    event.preventDefault();
-    syncSpherical();
-    orbit.spherical.radius = Math.max(0.45, Math.min(12, orbit.spherical.radius * (event.deltaY > 0 ? 1.08 : 0.92)));
-    applyOrbit();
-  }, { passive: false });
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
-
-  canvas.addEventListener("click", (event) => {
-    if (walk.on) return;
-    const rect = canvas.getBoundingClientRect();
-    const ndc = new THREE.Vector2(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      -((event.clientY - rect.top) / rect.height) * 2 + 1
-    );
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(ndc, camera);
-    const hits = ray.intersectObject(built.room, true);
-    pickEl.textContent = hits.length ? labelOf(hits[0].object) : "Пусто — мимо предметов.";
-  });
 
   function setView(name) {
     viewName = name;
     document.querySelectorAll("#views button").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.view === name);
     });
-    if (walk.on) toggleWalk(false);
     const view = views[name];
-    placeCamera(view.pos, view.target, false);
+    if (name === "top") {
+      if (document.pointerLockElement === canvas) document.exitPointerLock();
+      placeCamera(view.pos, view.target, false);
+    } else {
+      placeCamera([view.pos[0], EYE, view.pos[2]], view.target, false);
+    }
     applyShell();
+    updateChrome();
   }
 
   document.getElementById("views").addEventListener("click", (event) => {
@@ -880,38 +890,15 @@
     built.person.visible = event.target.checked;
   });
 
-  function toggleWalk(on) {
-    walk.on = on;
-    document.getElementById("walk").checked = on;
-    orbit.enabled = !on;
-    hint.textContent = on
-      ? "WASD — шаг, мышь — взгляд, Esc — снова осмотр"
-      : "Левая кнопка — крутить, колесо — ближе, правая — сдвинуть";
-    if (on) {
-      walk.yaw = Math.atan2(
-        -(target.x - camera.position.x),
-        -(target.z - camera.position.z)
-      );
-      walk.pitch = 0;
-      camera.position.y = 1.58;
-      canvas.requestPointerLock();
-    } else if (document.pointerLockElement === canvas) {
-      document.exitPointerLock();
-    }
-  }
-
-  document.getElementById("walk").addEventListener("change", (event) => toggleWalk(event.target.checked));
-  document.addEventListener("pointerlockchange", () => {
-    if (walk.on && document.pointerLockElement !== canvas) toggleWalk(false);
-  });
+  const GAME_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight"];
   window.addEventListener("keydown", (event) => {
     walk.keys[event.code] = true;
+    if (GAME_KEYS.includes(event.code) && viewName !== "top") event.preventDefault();
     if (event.code === "Digit1") setView("window");
     if (event.code === "Digit2") setView("sofa");
     if (event.code === "Digit3") setView("wall");
     if (event.code === "Digit4") setView("back");
     if (event.code === "Digit5") setView("top");
-    if (event.code === "Escape" && walk.on) toggleWalk(false);
   });
   window.addEventListener("keyup", (event) => {
     walk.keys[event.code] = false;
@@ -931,18 +918,30 @@
   });
 
   const clock = new THREE.Clock();
+  function finishFly() {
+    fly.t = 1;
+    camera.position.copy(fly.toP);
+    target.copy(fly.toT);
+    if (viewName === "top") {
+      camera.lookAt(target);
+      return;
+    }
+    camera.position.y = EYE;
+    aimFromDirection();
+    lookFromWalk();
+  }
+
   function frame() {
     const dt = Math.min(clock.getDelta(), 0.05);
     if (fly.t < 1) {
-      fly.t = Math.min(1, fly.t + dt / 0.7);
+      fly.t = Math.min(1, fly.t + dt / 0.55);
       const k = fly.t * fly.t * (3 - 2 * fly.t);
       camera.position.lerpVectors(fly.fromP, fly.toP, k);
       target.lerpVectors(fly.fromT, fly.toT, k);
-      camera.lookAt(target);
-      if (fly.t === 1) syncSpherical();
-    }
-    if (walk.on) {
-      const speed = (walk.keys.ShiftLeft ? 2.4 : 1.35) * dt;
+      if (fly.t === 1) finishFly();
+      else camera.lookAt(target);
+    } else if (viewName !== "top") {
+      const speed = (walk.keys.ShiftLeft || walk.keys.ShiftRight ? 3.6 : 2.15) * dt;
       const sin = Math.sin(walk.yaw);
       const cos = Math.cos(walk.yaw);
       let x = camera.position.x;
@@ -967,18 +966,13 @@
       }
       if (free(x + dx, z)) x += dx;
       if (free(x, z + dz)) z += dz;
-      camera.position.set(x, 1.58, z);
-      const look = new THREE.Vector3(
-        x - Math.sin(walk.yaw) * Math.cos(walk.pitch),
-        1.58 + Math.sin(walk.pitch),
-        z - Math.cos(walk.yaw) * Math.cos(walk.pitch)
-      );
-      camera.lookAt(look);
-      target.copy(look);
+      camera.position.set(x, EYE, z);
+      lookFromWalk();
     }
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
   }
+  updateChrome();
   frame();
   document.body.dataset.ready = "1";
 
@@ -988,13 +982,9 @@
     camera,
     target,
     views,
-    finishFly() {
-      fly.t = 1;
-      camera.position.copy(fly.toP);
-      target.copy(fly.toT);
-      camera.lookAt(target);
-      syncSpherical();
-    },
+    walk,
+    finishFly,
+    lookBy,
     THREE,
   };
 })();
