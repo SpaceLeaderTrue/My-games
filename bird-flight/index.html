@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Искра — полёт птицы</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ff6b6b'/%3E%3Cpath d='M6 18c6-2 8-8 10-8s4 6 10 8c-6 1-8 2-10 6-2-4-4-5-10-6z' fill='%23fff'/%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --ink: #143044;
+      --glass: rgba(10, 24, 38, 0.42);
+      --line: rgba(255, 255, 255, 0.28);
+      --gold: #ffd56a;
+      --coral: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%; background: #8fd4ff; color: white;
+      font-family: "Avenir Next", "Segoe UI", "Nunito", sans-serif;
+      overflow: hidden; touch-action: none; user-select: none;
+    }
+    #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; }
+    .vignette {
+      position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 52%, rgba(18, 32, 58, 0.28) 100%);
+    }
+    #fade {
+      position: fixed; inset: 0; z-index: 8; pointer-events: none;
+      background: #12324a; opacity: 0; transition: opacity 0.45s ease;
+    }
+    #fade.on { opacity: 1; }
+
+    #topbar {
+      position: fixed; top: 16px; left: 16px; right: 16px; z-index: 3;
+      display: flex; gap: 10px; align-items: flex-start; pointer-events: none;
+    }
+    .stat {
+      background: var(--glass); border: 1px solid var(--line);
+      backdrop-filter: blur(10px); border-radius: 16px;
+      padding: 8px 12px; min-width: 92px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    }
+    .stat b { display: block; font-size: 18px; letter-spacing: 0.02em; }
+    .stat span, .stat small { display: block; opacity: 0.8; font-size: 12px; }
+    .stat.route { margin-left: auto; text-align: right; }
+    #nextChip {
+      position: fixed; top: 78px; right: 16px; z-index: 3;
+      background: rgba(255, 210, 90, 0.18); border: 1px solid rgba(255, 220, 140, 0.45);
+      color: #fff8e4; border-radius: 999px; padding: 7px 12px; font-size: 13px;
+      backdrop-filter: blur(8px); max-width: min(420px, calc(100% - 32px));
+    }
+    #banner {
+      position: fixed; top: 12vh; left: 50%; transform: translate(-50%, -8px);
+      z-index: 3; text-align: center; opacity: 0; pointer-events: none;
+      transition: opacity 0.45s ease, transform 0.45s ease; width: min(680px, calc(100% - 32px));
+    }
+    #banner.show { opacity: 1; transform: translate(-50%, 0); }
+    #bannerName {
+      font-family: Palatino, "Iowan Old Style", Georgia, serif;
+      font-size: clamp(32px, 5vw, 58px); font-weight: 600; letter-spacing: 0.01em;
+      text-shadow: 0 8px 28px rgba(20, 40, 70, 0.35);
+    }
+    #bannerLine { margin-top: 4px; font-size: 16px; opacity: 0.92; text-shadow: 0 4px 16px rgba(0,0,0,0.25); }
+
+    #minimap {
+      position: fixed; left: 16px; bottom: 16px; z-index: 3;
+      width: 168px; height: 168px; border-radius: 50%;
+      border: 3px solid rgba(255, 220, 140, 0.85);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25), inset 0 0 0 4px rgba(8, 20, 30, 0.25);
+      background: #123; touch-action: none;
+    }
+    #hint {
+      position: fixed; left: 200px; right: 200px; bottom: 18px; z-index: 3;
+      text-align: center; font-size: 13.5px; line-height: 1.45;
+      color: rgba(255,255,255,0.92); text-shadow: 0 2px 8px rgba(0,0,0,0.35);
+      transition: opacity 0.6s ease;
+    }
+    #hint kbd {
+      display: inline-block; border: 1px solid rgba(255,255,255,0.35);
+      border-bottom-width: 2px; border-radius: 6px; padding: 0 6px; margin: 0 2px;
+      background: rgba(0,0,0,0.2); font-family: inherit;
+    }
+    #toast {
+      position: fixed; left: 50%; bottom: 18%; transform: translateX(-50%) translateY(8px);
+      z-index: 4; background: rgba(255, 244, 214, 0.94); color: #5a3414;
+      padding: 10px 16px; border-radius: 999px; font-weight: 700;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s ease, transform 0.3s ease;
+      box-shadow: 0 10px 24px rgba(80, 40, 10, 0.18);
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    #menu {
+      position: fixed; z-index: 4; left: 28px; bottom: 28px; width: min(440px, calc(100% - 40px));
+      padding: 22px 22px 18px; border-radius: 28px;
+      background: rgba(255, 250, 242, 0.9); color: var(--ink);
+      box-shadow: 0 18px 50px rgba(18, 40, 60, 0.22);
+      backdrop-filter: blur(16px);
+    }
+    .kicker { letter-spacing: 0.18em; text-transform: uppercase; font-size: 12px; color: #c45b4a; font-weight: 700; }
+    #menu h1 {
+      font-family: Palatino, "Iowan Old Style", Georgia, serif;
+      font-size: 68px; line-height: 0.9; margin: 6px 0 8px;
+      background: linear-gradient(100deg, #ff5d73, #ff9f1c 40%, #2ec4b6 75%, #5b8cff);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    #menu p { margin: 0 0 14px; line-height: 1.45; font-size: 15.5px; }
+    #menuStatus { min-height: 1.2em; color: #5d7384; font-size: 13px; margin-bottom: 8px; }
+    #startBtn, #resumeBtn, #flapBtn {
+      appearance: none; border: 0; cursor: pointer;
+      background: linear-gradient(100deg, #ff6b6b, #ffb703);
+      color: #3a1d12; font-weight: 800; font-size: 18px;
+      border-radius: 999px; padding: 12px 22px;
+      box-shadow: 0 8px 18px rgba(255, 120, 60, 0.35);
+    }
+    #startBtn:hover, #resumeBtn:hover, #flapBtn:hover { filter: brightness(1.05); }
+    .keys { margin-top: 12px; font-size: 12.5px; color: #3e5566; line-height: 1.5; }
+    #pause {
+      position: fixed; inset: 0; z-index: 6; display: none;
+      align-items: center; justify-content: center;
+      background: rgba(8, 18, 32, 0.35);
+    }
+    #pause .card {
+      background: rgba(255,250,242,0.94); color: var(--ink);
+      padding: 22px; border-radius: 24px; text-align: center; width: min(360px, calc(100% - 32px));
+    }
+    #pause h2 { font-family: Palatino, Georgia, serif; font-size: 36px; margin: 0 0 8px; }
+    #corner {
+      position: fixed; top: 16px; right: 16px; z-index: 5; display: flex; gap: 8px;
+    }
+    body.playing #corner { top: auto; bottom: 16px; right: 16px; }
+    #corner button, #fsBtn {
+      width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line);
+      background: var(--glass); color: white; cursor: pointer; backdrop-filter: blur(8px);
+      font-size: 16px;
+    }
+    body:not(.playing) #topbar,
+    body:not(.playing) #minimap,
+    body:not(.playing) #hint,
+    body:not(.playing) #nextChip,
+    body:not(.playing) #banner,
+    body:not(.playing) #btnPause,
+    body:not(.playing) #touch { visibility: hidden; }
+    body.playing #menu { display: none; }
+    body.paused #pause { display: flex; }
+
+    #touch { position: fixed; inset: 0; z-index: 4; pointer-events: none; display: none; }
+    html.touch #touch { display: block; }
+    #stick {
+      pointer-events: auto; position: absolute; left: 22px; bottom: 22px;
+      width: 116px; height: 116px; border-radius: 50%;
+      background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.35);
+    }
+    #knob {
+      position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(180deg, #fff, #d7fff4);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.2);
+    }
+    #flapBtn {
+      pointer-events: auto; position: absolute; right: 22px; bottom: 34px;
+      width: 108px; height: 108px; border-radius: 50%; font-size: 18px;
+    }
+    @media (pointer: coarse) {
+      #touch { display: block; }
+      #hint { display: none; }
+    }
+    @media (max-width: 760px) {
+      #menu { left: 12px; right: 12px; bottom: 12px; width: auto; }
+      #menu h1 { font-size: 52px; }
+      #minimap { width: 112px; height: 112px; }
+      #hint { left: 12px; right: 12px; bottom: 132px; }
+      #topbar { top: 10px; left: 10px; right: 10px; }
+      .stat b { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="view"></canvas>
+  <div class="vignette"></div>
+  <div id="fade"></div>
+
+  <header id="topbar">
+    <div class="stat"><b id="altStat">0 м</b><span>высота</span></div>
+    <div class="stat"><b id="spdStat">0</b><span>м/с</span></div>
+    <div class="stat route"><b id="ringCount">0/11</b><span id="placeCount">места 0/12</span></div>
+  </header>
+  <div id="nextChip">кольца покажут дорогу</div>
+  <div id="banner"><div id="bannerName"></div><div id="bannerLine"></div></div>
+  <canvas id="minimap" width="240" height="240"></canvas>
+  <div id="hint">
+    <kbd>W</kbd><kbd>S</kbd> тангаж · <kbd>A</kbd><kbd>D</kbd> поворот · <kbd>пробел</kbd> взмах · <kbd>Shift</kbd> пике
+  </div>
+  <div id="toast"></div>
+
+  <section id="menu">
+    <div class="kicker">открытое небо</div>
+    <h1>Искра</h1>
+    <p>Летите куда хотите. Золотые кольца ведут сквозь ущелье, водопады над лесом, радужное озеро, облачные вершины и золотой берег — свернуть можно в любую сторону.</p>
+    <div id="menuStatus">Собираем страну…</div>
+    <button id="startBtn" type="button">В полёт</button>
+    <div class="keys">Стрелки или WASD — руль. Пробел или зажатая мышь — взмах. Кольцо фиолетовое, в стороне от маршрута — сумеречная роща.</div>
+  </section>
+
+  <div id="pause">
+    <div class="card">
+      <h2>Пауза</h2>
+      <p>Небо подождёт.</p>
+      <button id="resumeBtn" type="button">Дальше</button>
+    </div>
+  </div>
+
+  <div id="touch">
+    <div id="stick" aria-label="Руль"><div id="knob"></div></div>
+    <button id="flapBtn" type="button">Взмах</button>
+  </div>
+
+  <div id="corner">
+    <button id="btnSound" type="button" title="Звук">♪</button>
+    <button id="btnHelp" type="button" title="Подсказка">?</button>
+    <button id="fsBtn" type="button" title="На весь экран">⛶</button>
+    <button id="btnPause" type="button" title="Пауза">II</button>
+  </div>
+
+  <script src="vendor/three.min.js"></script>
+  <script src="world.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
