@@ -1655,11 +1655,11 @@
     const flapLen = Math.floor(ctx.sampleRate * 0.45);
     const flapNoise = ctx.createBuffer(1, flapLen, ctx.sampleRate);
     const flapData = flapNoise.getChannelData(0);
-    let brown = 0;
+    let low = 0;
     for (let i = 0; i < flapLen; i++) {
       const white = Math.random() * 2 - 1;
-      brown = brown * 0.96 + white * 0.04;
-      flapData[i] = brown * 3.2;
+      low = low * 0.985 + white * 0.015;
+      flapData[i] = low * 2.4 + white * 0.08;
     }
     const windSrc = ctx.createBufferSource();
     windSrc.buffer = buffer;
@@ -1733,46 +1733,51 @@
       },
       flap: function () {
         const t = ctx.currentTime;
-        const dur = 0.2 + Math.random() * 0.035;
+        const dur = 0.32 + Math.random() * 0.08;
         const src = ctx.createBufferSource();
         src.buffer = flapNoise;
-        const bp = ctx.createBiquadFilter();
-        bp.type = "bandpass";
-        bp.Q.value = 0.9;
-        const startF = 780 + Math.random() * 220;
-        bp.frequency.setValueAtTime(startF, t);
-        bp.frequency.exponentialRampToValueAtTime(190, t + dur);
+        src.playbackRate.value = 0.78 + Math.random() * 0.16;
+        const air = ctx.createBiquadFilter();
+        air.type = "lowpass";
+        air.frequency.setValueAtTime(520 + Math.random() * 90, t);
+        air.frequency.exponentialRampToValueAtTime(180, t + dur);
+        air.Q.value = 0.35;
         const whoosh = ctx.createGain();
+        const peak = 0.045 + Math.random() * 0.012;
         whoosh.gain.setValueAtTime(0.0001, t);
-        whoosh.gain.exponentialRampToValueAtTime(0.32, t + 0.016);
-        whoosh.gain.exponentialRampToValueAtTime(0.06, t + 0.08);
+        whoosh.gain.exponentialRampToValueAtTime(peak, t + 0.07);
+        whoosh.gain.exponentialRampToValueAtTime(peak * 0.4, t + dur * 0.62);
         whoosh.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-        src.connect(bp);
-        bp.connect(whoosh);
+        src.connect(air);
+        air.connect(whoosh);
         whoosh.connect(master);
+        const rustle = ctx.createBufferSource();
+        rustle.buffer = flapNoise;
+        rustle.playbackRate.value = 1.15 + Math.random() * 0.2;
+        const feathers = ctx.createBiquadFilter();
+        feathers.type = "highpass";
+        feathers.frequency.value = 1400;
+        const hush = ctx.createGain();
+        hush.gain.setValueAtTime(0.0001, t + 0.03);
+        hush.gain.exponentialRampToValueAtTime(0.012, t + 0.09);
+        hush.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+        rustle.connect(feathers);
+        feathers.connect(hush);
+        hush.connect(master);
         src.onended = function () {
           src.disconnect();
-          bp.disconnect();
+          air.disconnect();
           whoosh.disconnect();
+        };
+        rustle.onended = function () {
+          rustle.disconnect();
+          feathers.disconnect();
+          hush.disconnect();
         };
         src.start(t);
         src.stop(t + dur + 0.02);
-        const body = ctx.createOscillator();
-        body.type = "sine";
-        body.frequency.setValueAtTime(128 + Math.random() * 22, t);
-        body.frequency.exponentialRampToValueAtTime(52, t + 0.15);
-        const bodyGain = ctx.createGain();
-        bodyGain.gain.setValueAtTime(0.0001, t);
-        bodyGain.gain.exponentialRampToValueAtTime(0.06, t + 0.012);
-        bodyGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-        body.connect(bodyGain);
-        bodyGain.connect(master);
-        body.onended = function () {
-          body.disconnect();
-          bodyGain.disconnect();
-        };
-        body.start(t);
-        body.stop(t + 0.18);
+        rustle.start(t);
+        rustle.stop(t + 0.24);
       },
       chime: function (a, b) {
         [a, b].forEach(function (freq, i) {
