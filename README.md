@@ -7,6 +7,12 @@ Walkable loft scene (WASD, mouse, or a phone joystick). Static copy of [bali-lof
 
 Open [`bali-loft/index.html`](bali-loft/index.html).
 
+## Living room
+
+Approximate 3D model of one room, rebuilt from photos. Sizes are estimated, not measured. Click the room, then walk with WASD and look with the mouse. Shift runs, Esc releases the mouse, and 1–5 jump to saved spots. Download `gostinaya.obj` from the panel if you want the mesh in Blender.
+
+Open [`living-room/index.html`](living-room/index.html).
+
 ## SPACE — Cockpit
 
 The original cockpit, plus a 3D chart you can fly through: stations and planets joined by routes. Same controls as before — WASD or arrows, Space or POWER for thrust, D / N / R on the gear lever.
