@@ -1162,8 +1162,8 @@
   }
 
   function stepFlight(dt, input) {
-    player.yaw += input.sx * (1.15 + player.speed * 0.012) * dt;
-    const targetRoll = clamp(-input.sx * 0.95, -1.05, 1.05);
+    player.yaw -= input.sx * (1.15 + player.speed * 0.012) * dt;
+    const targetRoll = clamp(input.sx * 0.95, -1.05, 1.05);
     player.roll += (targetRoll - player.roll) * Math.min(1, dt * 4.2);
     player.pitch += input.sy * 0.95 * dt;
     if (Math.abs(input.sy) < 0.08) player.pitch += (-0.12 - player.pitch) * Math.min(1, dt * 0.5);
@@ -1595,6 +1595,15 @@
       lastN = lastN * 0.985 + white * 0.015;
       data[i] = lastN * 4;
     }
+    const flapLen = Math.floor(ctx.sampleRate * 0.45);
+    const flapNoise = ctx.createBuffer(1, flapLen, ctx.sampleRate);
+    const flapData = flapNoise.getChannelData(0);
+    let brown = 0;
+    for (let i = 0; i < flapLen; i++) {
+      const white = Math.random() * 2 - 1;
+      brown = brown * 0.96 + white * 0.04;
+      flapData[i] = brown * 3.2;
+    }
     const windSrc = ctx.createBufferSource();
     windSrc.buffer = buffer;
     windSrc.loop = true;
@@ -1623,6 +1632,75 @@
     fallFilter.connect(fallGain);
     fallGain.connect(master);
     fallSrc.start();
+
+    const padGain = ctx.createGain();
+    padGain.gain.value = 0.05;
+    const padFilter = ctx.createBiquadFilter();
+    padFilter.type = "lowpass";
+    padFilter.frequency.value = 640;
+    padFilter.Q.value = 0.4;
+    padFilter.connect(padGain);
+    padGain.connect(master);
+    [196, 246.94, 293.66, 392].forEach(function (freq, i) {
+      const o = ctx.createOscillator();
+      o.type = i % 2 ? "triangle" : "sine";
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.value = i === 0 ? 0.34 : 0.16;
+      o.connect(g);
+      g.connect(padFilter);
+      o.start();
+    });
+    const breath = ctx.createOscillator();
+    breath.frequency.value = 0.07;
+    const breathAmt = ctx.createGain();
+    breathAmt.gain.value = 0.012;
+    breath.connect(breathAmt);
+    breathAmt.connect(padGain.gain);
+    breath.start();
+    const air = ctx.createBufferSource();
+    air.buffer = buffer;
+    air.loop = true;
+    const airFilter = ctx.createBiquadFilter();
+    airFilter.type = "lowpass";
+    airFilter.frequency.value = 420;
+    const airGain = ctx.createGain();
+    airGain.gain.value = 0.025;
+    air.connect(airFilter);
+    airFilter.connect(airGain);
+    airGain.connect(master);
+    air.start();
+
+    function chirp() {
+      const wait = 2.4 + Math.random() * 4.2;
+      const t = ctx.currentTime + wait;
+      const f0 = 1700 + Math.random() * 1200;
+      const pan = ctx.createStereoPanner();
+      pan.pan.value = Math.random() * 1.2 - 0.6;
+      pan.connect(master);
+      function note(time, freq, amp) {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.setValueAtTime(freq, time);
+        o.frequency.exponentialRampToValueAtTime(freq * (0.86 + Math.random() * 0.1), time + 0.11);
+        g.gain.setValueAtTime(0.0001, time);
+        g.gain.exponentialRampToValueAtTime(amp, time + 0.018);
+        g.gain.exponentialRampToValueAtTime(0.0001, time + 0.15);
+        o.connect(g);
+        g.connect(pan);
+        o.start(time);
+        o.stop(time + 0.17);
+      }
+      note(t, f0, 0.028);
+      if (Math.random() > 0.3) note(t + 0.13, f0 * (1.12 + Math.random() * 0.18), 0.02);
+      setTimeout(function () {
+        try { pan.disconnect(); } catch (err) {}
+      }, (wait + 0.6) * 1000);
+      setTimeout(chirp, wait * 1000);
+    }
+    chirp();
+
     audio = {
       ctx: ctx,
       master: master,
@@ -1634,17 +1712,47 @@
         fallGain.gain.setTargetAtTime(amt * 0.08, ctx.currentTime, 0.25);
       },
       flap: function () {
-        const o = ctx.createBufferSource();
-        o.buffer = fallBuf;
-        const g = ctx.createGain();
-        const f = ctx.createBiquadFilter();
-        f.type = "highpass";
-        f.frequency.value = 500;
-        g.gain.setValueAtTime(0.12, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-        o.connect(f); f.connect(g); g.connect(master);
-        o.start();
-        o.stop(ctx.currentTime + 0.14);
+        const t = ctx.currentTime;
+        const dur = 0.2 + Math.random() * 0.035;
+        const src = ctx.createBufferSource();
+        src.buffer = flapNoise;
+        const bp = ctx.createBiquadFilter();
+        bp.type = "bandpass";
+        bp.Q.value = 0.9;
+        const startF = 780 + Math.random() * 220;
+        bp.frequency.setValueAtTime(startF, t);
+        bp.frequency.exponentialRampToValueAtTime(190, t + dur);
+        const whoosh = ctx.createGain();
+        whoosh.gain.setValueAtTime(0.0001, t);
+        whoosh.gain.exponentialRampToValueAtTime(0.32, t + 0.016);
+        whoosh.gain.exponentialRampToValueAtTime(0.06, t + 0.08);
+        whoosh.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        src.connect(bp);
+        bp.connect(whoosh);
+        whoosh.connect(master);
+        src.onended = function () {
+          src.disconnect();
+          bp.disconnect();
+          whoosh.disconnect();
+        };
+        src.start(t);
+        src.stop(t + dur + 0.02);
+        const body = ctx.createOscillator();
+        body.type = "sine";
+        body.frequency.setValueAtTime(128 + Math.random() * 22, t);
+        body.frequency.exponentialRampToValueAtTime(52, t + 0.15);
+        const bodyGain = ctx.createGain();
+        bodyGain.gain.setValueAtTime(0.0001, t);
+        bodyGain.gain.exponentialRampToValueAtTime(0.06, t + 0.012);
+        bodyGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+        body.connect(bodyGain);
+        bodyGain.connect(master);
+        body.onended = function () {
+          body.disconnect();
+          bodyGain.disconnect();
+        };
+        body.start(t);
+        body.stop(t + 0.18);
       },
       chime: function (a, b) {
         [a, b].forEach(function (freq, i) {
