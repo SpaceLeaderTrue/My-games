@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Гостиная — 3D</title>
+  <style>
+    :root {
+      --ink: #2a241c;
+      --muted: #6d6256;
+      --paper: rgba(250, 246, 240, 0.94);
+      --line: rgba(42, 36, 28, 0.12);
+      --accent: #8c5a32;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%; background: #c5d6e6; color: var(--ink);
+      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+    }
+    #view { position: fixed; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+    .panel {
+      position: fixed; z-index: 2; top: 14px; left: 14px; width: min(332px, calc(100% - 28px));
+      max-height: calc(100% - 28px); overflow: auto;
+      background: var(--paper); border: 1px solid var(--line); border-radius: 18px;
+      padding: 16px 16px 14px; box-shadow: 0 16px 50px rgba(40, 28, 16, 0.16);
+      backdrop-filter: blur(12px);
+    }
+    h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.03em; margin: 0 0 4px; }
+    .note { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .row { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+    button, .check {
+      font: inherit; color: var(--ink); background: #fff; border: 1px solid var(--line);
+      border-radius: 999px; padding: 7px 11px; cursor: pointer;
+    }
+    button:hover, .check:hover { border-color: #c4b4a2; }
+    button.active { background: var(--ink); color: #f6f1ea; border-color: var(--ink); }
+    .check { display: inline-flex; align-items: center; gap: 6px; }
+    .check input { accent-color: var(--accent); }
+    #export { background: var(--accent); color: #fffaf5; border-color: transparent; }
+    .plan { width: 100%; height: auto; margin: 4px 0 10px; border-radius: 12px; background: #efe7dc; }
+    dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; font-size: 13px; }
+    dt { color: var(--muted); }
+    dd { margin: 0; font-variant-numeric: tabular-nums; }
+    #pick { min-height: 1.3em; margin: 10px 0 0; font-size: 13px; color: var(--accent); }
+    .hint {
+      position: fixed; z-index: 2; left: 50%; bottom: 14px; transform: translateX(-50%);
+      background: rgba(28, 24, 20, 0.78); color: #f4efe8; border-radius: 999px;
+      padding: 8px 14px; font-size: 12.5px; letter-spacing: 0.01em;
+      max-width: calc(100% - 28px); text-align: center;
+    }
+    #err {
+      display: none; position: fixed; inset: 18px auto auto 18px; z-index: 5;
+      background: #fff4f2; color: #6d2218; padding: 12px 14px; border-radius: 12px; max-width: 420px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="view"></canvas>
+  <div id="err"></div>
+  <aside class="panel">
+    <h1>Гостиная</h1>
+    <p class="note">Черновик по четырём фото. Это не обмер: стены, мебель и проёмы стоят по пропорциям кадра. Следующие фото можно встроить в эту же модель.</p>
+    <svg class="plan" viewBox="0 0 200 250" role="img" aria-label="План комнаты">
+      <rect x="18" y="16" width="164" height="214" rx="2" fill="#f7f3ec" stroke="#2a241c" stroke-width="2"/>
+      <rect x="28" y="214" width="86" height="12" fill="#b9d6ee" stroke="#f7f7f5" stroke-width="1"/>
+      <text x="71" y="206" text-anchor="middle" font-size="9" fill="#5c6e80">окно</text>
+      <rect x="40" y="168" width="36" height="36" rx="18" fill="#a56b42"/>
+      <text x="58" y="164" text-anchor="middle" font-size="9" fill="#6d6256">стол</text>
+      <rect x="78" y="112" width="92" height="40" rx="8" fill="#e4d5c0" stroke="#c3b29a"/>
+      <text x="124" y="136" text-anchor="middle" font-size="10" fill="#6a5b48">диван</text>
+      <rect x="22" y="48" width="14" height="150" fill="#7a4e32"/>
+      <text x="44" y="78" font-size="9" fill="#6d6256">стенка</text>
+      <rect x="70" y="28" width="78" height="10" fill="#f4f6f8" stroke="#222"/>
+      <text x="109" y="24" text-anchor="middle" font-size="9" fill="#6d6256">экран</text>
+      <path d="M182 16 A46 46 0 0 1 136 62 L182 62 Z" fill="#f3efe6" stroke="#2a241c"/>
+      <text x="168" y="52" text-anchor="middle" font-size="8" fill="#6d6256">шкаф</text>
+      <text x="168" y="128" text-anchor="middle" font-size="9" fill="#8a7d6c" transform="rotate(90 168 128)">обои</text>
+    </svg>
+    <div class="row" id="views">
+      <button type="button" data-view="window" class="active">От окна</button>
+      <button type="button" data-view="sofa">У дивана</button>
+      <button type="button" data-view="wall">К обоям</button>
+      <button type="button" data-view="back">От экрана</button>
+      <button type="button" data-view="top">Сверху</button>
+    </div>
+    <div class="row">
+      <label class="check"><input id="dollhouse" type="checkbox" /> Прозрачные стены</label>
+      <label class="check"><input id="person" type="checkbox" /> Рост 175 см</label>
+      <label class="check"><input id="walk" type="checkbox" /> Ходить</label>
+      <button id="export" type="button">Скачать OBJ</button>
+    </div>
+    <dl>
+      <dt>Комната</dt><dd>4.05 × 5.45 м</dd>
+      <dt>Потолок</dt><dd>2.62 м</dd>
+      <dt>Диван</dt><dd>2.55 × 1.12 м</dd>
+      <dt>Экран</dt><dd>2.16 × 1.26 м</dd>
+      <dt>Стол</dt><dd>Ø 0.92 м</dd>
+    </dl>
+    <p id="pick">Нажмите на предмет, чтобы узнать, что это.</p>
+  </aside>
+  <div class="hint" id="hint">Левая кнопка — крутить, колесо — ближе, правая — сдвинуть</div>
+  <script src="vendor/three.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
