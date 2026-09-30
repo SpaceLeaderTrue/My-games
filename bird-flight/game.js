@@ -148,13 +148,25 @@
     scene.add(fill);
     clockLights = { sun: sun };
     window.addEventListener("resize", resize);
+    window.addEventListener("orientationchange", function () {
+      setTimeout(resize, 60);
+      setTimeout(resize, 320);
+    });
+    if (window.visualViewport) visualViewport.addEventListener("resize", resize);
+  }
+
+  function viewSize() {
+    const vv = window.visualViewport;
+    const w = vv ? vv.width : window.innerWidth;
+    const h = vv ? vv.height : window.innerHeight;
+    return { w: Math.max(1, Math.round(w)), h: Math.max(1, Math.round(h)) };
   }
 
   function resize() {
     if (!renderer) return;
-    const w = window.innerWidth, h = window.innerHeight;
-    renderer.setSize(w, h, false);
-    camera.aspect = w / Math.max(1, h);
+    const size = viewSize();
+    renderer.setSize(size.w, size.h, false);
+    camera.aspect = size.w / size.h;
     camera.updateProjectionMatrix();
   }
 
@@ -1905,12 +1917,74 @@
     toggleMute();
     if (!muted && audio) audio.ctx.resume();
   });
-  document.getElementById("fsBtn").addEventListener("click", function () {
-    if (!document.fullscreenElement) {
-      const req = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
-      if (req) req.call(document.documentElement);
-    } else if (document.exitFullscreen) document.exitFullscreen();
+  canvas.addEventListener("touchstart", function (e) { e.preventDefault(); }, { passive: false });
+  canvas.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
+  document.addEventListener("selectstart", function (e) { e.preventDefault(); }, true);
+  document.addEventListener("dragstart", function (e) { e.preventDefault(); }, true);
+  document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, true);
+  document.addEventListener("contextmenu", function (e) {
+    if (e.target && e.target.closest && e.target.closest("button, #menu")) return;
+    e.preventDefault();
   });
+  document.addEventListener("selectionchange", function () {
+    const sel = window.getSelection && window.getSelection();
+    if (sel && !sel.isCollapsed) sel.removeAllRanges();
+  });
+
+  function fullscreenNode() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+  function requestFullscreen(el) {
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
+    if (!req) return Promise.reject(new Error("fullscreen"));
+    try {
+      const result = req.call(el);
+      return result && result.then ? result : Promise.resolve();
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+  function exitFullscreen() {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
+    if (!exit) return;
+    try {
+      const result = exit.call(document);
+      if (result && result.catch) result.catch(function () {});
+    } catch (err) { /* already leaving */ }
+  }
+  function enterFill() {
+    document.documentElement.classList.add("fs-fill");
+    window.scrollTo(0, 0);
+    resize();
+    setTimeout(resize, 80);
+    setTimeout(resize, 320);
+  }
+  function leaveFill() {
+    document.documentElement.classList.remove("fs-fill");
+    resize();
+  }
+  document.getElementById("fsBtn").addEventListener("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (fullscreenNode() || document.documentElement.classList.contains("fs-fill")) {
+      leaveFill();
+      exitFullscreen();
+      if (screen.orientation && screen.orientation.unlock) {
+        try { screen.orientation.unlock(); } catch (err) {}
+      }
+      return;
+    }
+    requestFullscreen(document.documentElement).then(function () {
+      resize();
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock("landscape").catch(function () {});
+      }
+    }).catch(function () {
+      enterFill();
+    });
+  });
+  document.addEventListener("fullscreenchange", resize);
+  document.addEventListener("webkitfullscreenchange", resize);
   paintSound();
 
   window.__iskra = {
