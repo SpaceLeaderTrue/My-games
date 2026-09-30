@@ -1917,8 +1917,14 @@
     toggleMute();
     if (!muted && audio) audio.ctx.resume();
   });
-  canvas.addEventListener("touchstart", function (e) { e.preventDefault(); }, { passive: false });
-  canvas.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
+  canvas.addEventListener("touchstart", function (e) {
+    if (document.documentElement.classList.contains("safari-scroll")) return;
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener("touchmove", function (e) {
+    if (document.documentElement.classList.contains("safari-scroll")) return;
+    e.preventDefault();
+  }, { passive: false });
   document.addEventListener("selectstart", function (e) { e.preventDefault(); }, true);
   document.addEventListener("dragstart", function (e) { e.preventDefault(); }, true);
   document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, true);
@@ -1934,81 +1940,129 @@
   function fullscreenNode() {
     return document.fullscreenElement || document.webkitFullscreenElement || null;
   }
+  function iosFamily() {
+    const ua = navigator.userAgent || "";
+    const touchMac = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+    if (/iPhone|iPod/.test(ua)) return "iphone";
+    if (/iPad/.test(ua) || touchMac) return "ipad";
+    return "";
+  }
+  function screenSpan() {
+    const landscape = window.innerWidth > window.innerHeight;
+    const shortSide = Math.min(screen.width, screen.height);
+    const longSide = Math.max(screen.width, screen.height);
+    return landscape ? shortSide : longSide;
+  }
+  function safariBarsOpen() {
+    const vv = window.visualViewport;
+    const h = vv ? vv.height + Math.max(0, vv.offsetTop) : window.innerHeight;
+    return h < screenSpan() - 28;
+  }
   function clearScreenBox() {
     document.documentElement.style.width = "";
     document.documentElement.style.height = "";
     document.body.style.width = "";
     document.body.style.height = "";
+    document.documentElement.style.removeProperty("--vv-h");
   }
-  function fillScreenBox() {
-    const landscape = window.innerWidth > window.innerHeight;
-    let sw = screen.width;
-    let sh = screen.height;
-    const dpr = window.devicePixelRatio || 1;
-    if (sw > window.innerWidth * 1.5) { sw /= dpr; sh /= dpr; }
-    const w = landscape ? Math.max(window.innerWidth, sw, sh) : window.innerWidth;
-    const h = landscape ? Math.max(window.innerHeight, Math.min(sw, sh)) : window.innerHeight;
-    document.documentElement.style.width = w + "px";
-    document.documentElement.style.height = h + "px";
-    document.body.style.width = w + "px";
-    document.body.style.height = h + "px";
+  function enterSafariScrollMode() {
+    document.documentElement.classList.remove("fs-fill");
+    document.documentElement.classList.add("safari-scroll");
+    window.scrollTo(0, 0);
+    resize();
   }
-  function enterFill() {
+  function lockSafariBars() {
+    const vv = window.visualViewport;
+    const h = vv ? vv.height : window.innerHeight;
+    document.documentElement.style.setProperty("--vv-h", Math.round(h) + "px");
+    document.documentElement.classList.remove("safari-scroll");
     document.documentElement.classList.add("fs-fill");
     window.scrollTo(0, 0);
     resize();
     setTimeout(resize, 80);
-    setTimeout(resize, 320);
+  }
+  function watchSafariBars() {
+    if (!document.documentElement.classList.contains("safari-scroll")) return;
+    if (!safariBarsOpen()) lockSafariBars();
+  }
+  function exitNative() {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
+    if (fullscreenNode() && exit) {
+      const done = exit.call(document);
+      if (done && done.catch) done.catch(function () {});
+    }
+  }
+  function exitImmersive() {
+    document.documentElement.classList.remove("safari-scroll");
+    document.documentElement.classList.remove("fs-fill");
+    clearScreenBox();
+    window.scrollTo(0, 0);
+    exitNative();
+    resize();
   }
   function afterFullscreen() {
-    if (!fullscreenNode()) {
+    if (fullscreenNode()) {
+      document.documentElement.classList.remove("safari-scroll");
       document.documentElement.classList.remove("fs-fill");
-      clearScreenBox();
     }
     resize();
     setTimeout(resize, 80);
     setTimeout(resize, 320);
   }
-  function toggleFullscreen() {
-    const nativeOn = fullscreenNode();
-    if (nativeOn || document.documentElement.classList.contains("fs-fill")) {
-      document.documentElement.classList.remove("fs-fill");
-      clearScreenBox();
-      const exit = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
-      if (nativeOn && exit) {
-        const done = exit.call(document);
-        if (done && done.catch) done.catch(function () {});
-      }
+  function fullscreenFallback() {
+    if (iosFamily()) enterSafariScrollMode();
+    else {
+      document.documentElement.classList.add("fs-fill");
       resize();
+    }
+  }
+  function toggleFullscreen() {
+    const html = document.documentElement;
+    if (fullscreenNode() || html.classList.contains("fs-fill") || html.classList.contains("safari-scroll")) {
+      exitImmersive();
       return;
     }
-    window.scrollTo(0, 0);
-    const landscape = window.innerWidth > window.innerHeight;
-    let el = landscape ? document.body : document.documentElement;
-    let req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
-    if (!req) {
-      el = document.documentElement;
-      req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
-    }
-    if (!req) { enterFill(); return; }
-    fillScreenBox();
+    const el = document.getElementById("stage") || html;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
+    if (!req) { fullscreenFallback(); return; }
     let done;
     try { done = req.call(el); }
-    catch (err) { enterFill(); return; }
+    catch (err) { fullscreenFallback(); return; }
     if (done && done.then) {
       done.then(function () { afterFullscreen(); }).catch(function () {
-        if (!fullscreenNode()) enterFill();
+        if (!fullscreenNode()) fullscreenFallback();
       });
     } else {
       afterFullscreen();
+      setTimeout(function () {
+        if (!fullscreenNode() && !html.classList.contains("fs-fill") && !html.classList.contains("safari-scroll")) {
+          fullscreenFallback();
+        }
+      }, 80);
     }
   }
-  document.getElementById("fsBtn").addEventListener("click", function (e) {
+  let fsGestureAt = 0;
+  const fsBtn = document.getElementById("fsBtn");
+  fsBtn.addEventListener("touchend", function (e) {
+    fsGestureAt = performance.now();
     e.stopPropagation();
+    toggleFullscreen();
+  }, { passive: true });
+  fsBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (performance.now() - fsGestureAt < 800) return;
     toggleFullscreen();
   });
   document.addEventListener("fullscreenchange", afterFullscreen);
   document.addEventListener("webkitfullscreenchange", afterFullscreen);
+  if (window.visualViewport) {
+    visualViewport.addEventListener("resize", function () {
+      watchSafariBars();
+      if (document.documentElement.classList.contains("fs-fill") || fullscreenNode()) resize();
+    });
+    visualViewport.addEventListener("scroll", watchSafariBars);
+  }
+  window.addEventListener("scroll", watchSafariBars, { passive: true });
   paintSound();
 
   window.__iskra = {

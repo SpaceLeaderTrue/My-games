@@ -30,33 +30,64 @@
       font-family: "Avenir Next", "Segoe UI", "Nunito", sans-serif;
       overflow: hidden; overscroll-behavior: none;
     }
-    html.fs-fill, html.fs-fill body {
+    #stage {
       position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh;
+      overflow: hidden; background: #8fd4ff;
     }
+    html.fs-fill, html.fs-fill body {
+      position: fixed; inset: 0; width: 100%; overflow: hidden;
+      height: var(--vv-h, 100dvh);
+    }
+    html.fs-fill #stage {
+      position: fixed; inset: 0; width: 100%; height: var(--vv-h, 100dvh);
+    }
+    html.safari-scroll, html.safari-scroll body {
+      position: static; overflow: auto; height: auto; min-height: 100%;
+      touch-action: pan-y;
+    }
+    html.safari-scroll #stage {
+      position: sticky; top: 0; left: 0; width: 100%;
+      height: 100dvh; overflow: visible; inset: auto;
+    }
+    html.safari-scroll #stage, html.safari-scroll #stage * { touch-action: pan-y; }
+    #safariSpacer { display: none; width: 100%; }
+    html.safari-scroll #safariSpacer { display: block; height: 70vh; }
+    #safariHint {
+      display: none; position: absolute; z-index: 7; left: 50%; top: 42%;
+      transform: translate(-50%, -50%); width: min(340px, calc(100% - 32px));
+      text-align: center; pointer-events: none;
+      background: rgba(10, 24, 38, 0.78); color: #fff8e4;
+      border: 1px solid rgba(255, 220, 140, 0.55);
+      border-radius: 18px; padding: 12px 14px; font-size: 15px; line-height: 1.35;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+    }
+    html.safari-scroll #safariHint { display: block; }
     html:fullscreen, html:-webkit-full-screen,
-    body:fullscreen, body:-webkit-full-screen {
+    body:fullscreen, body:-webkit-full-screen,
+    #stage:fullscreen, #stage:-webkit-full-screen {
       width: 100%; height: 100%; background: #8fd4ff;
     }
     html:fullscreen #view, html:-webkit-full-screen #view,
-    body:fullscreen #view, body:-webkit-full-screen #view {
+    body:fullscreen #view, body:-webkit-full-screen #view,
+    #stage:fullscreen #view, #stage:-webkit-full-screen #view {
       width: 100%; height: 100%;
     }
     #view {
-      position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh;
+      position: absolute; inset: 0; width: 100%; height: 100%;
       display: block; z-index: 0;
     }
     .vignette {
-      position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      position: absolute; inset: 0; z-index: 1; pointer-events: none;
       background: radial-gradient(ellipse at center, transparent 52%, rgba(18, 32, 58, 0.28) 100%);
     }
     #fade {
-      position: fixed; inset: 0; z-index: 8; pointer-events: none;
+      position: absolute; inset: 0; z-index: 8; pointer-events: none;
       background: #12324a; opacity: 0; transition: opacity 0.45s ease;
     }
     #fade.on { opacity: 1; }
 
     #topbar {
-      position: fixed; top: 16px; left: 16px; right: 16px; z-index: 3;
+      position: absolute; top: 16px; left: 16px; right: 16px; z-index: 3;
       display: flex; gap: 10px; align-items: flex-start; pointer-events: none;
     }
     .stat {
@@ -70,13 +101,13 @@
     .stat.route { margin-left: auto; text-align: right; }
     #nextChip, #hint, #banner, #toast, .vignette { pointer-events: none; }
     #nextChip {
-      position: fixed; top: 78px; right: 16px; z-index: 3;
+      position: absolute; top: 78px; right: 16px; z-index: 3;
       background: rgba(255, 210, 90, 0.18); border: 1px solid rgba(255, 220, 140, 0.45);
       color: #fff8e4; border-radius: 999px; padding: 7px 12px; font-size: 13px;
       backdrop-filter: blur(8px); max-width: min(420px, calc(100% - 32px));
     }
     #banner {
-      position: fixed; top: 12vh; left: 50%; transform: translate(-50%, -8px);
+      position: absolute; top: 12vh; left: 50%; transform: translate(-50%, -8px);
       z-index: 3; text-align: center; opacity: 0; pointer-events: none;
       transition: opacity 0.45s ease, transform 0.45s ease; width: min(680px, calc(100% - 32px));
     }
@@ -89,14 +120,14 @@
     #bannerLine { margin-top: 4px; font-size: 16px; opacity: 0.92; text-shadow: 0 4px 16px rgba(0,0,0,0.25); }
 
     #minimap {
-      position: fixed; left: 16px; bottom: 16px; z-index: 3;
+      position: absolute; left: 16px; bottom: 16px; z-index: 3;
       width: 168px; height: 168px; border-radius: 50%;
       border: 3px solid rgba(255, 220, 140, 0.85);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25), inset 0 0 0 4px rgba(8, 20, 30, 0.25);
       background: #123; touch-action: none;
     }
     #hint {
-      position: fixed; left: 200px; right: 200px; bottom: 18px; z-index: 3;
+      position: absolute; left: 200px; right: 200px; bottom: 18px; z-index: 3;
       text-align: center; font-size: 13.5px; line-height: 1.45;
       color: rgba(255,255,255,0.92); text-shadow: 0 2px 8px rgba(0,0,0,0.35);
       transition: opacity 0.6s ease;
@@ -107,7 +138,7 @@
       background: rgba(0,0,0,0.2); font-family: inherit;
     }
     #toast {
-      position: fixed; left: 50%; bottom: 18%; transform: translateX(-50%) translateY(8px);
+      position: absolute; left: 50%; bottom: 18%; transform: translateX(-50%) translateY(8px);
       z-index: 4; background: rgba(255, 244, 214, 0.94); color: #5a3414;
       padding: 10px 16px; border-radius: 999px; font-weight: 700;
       opacity: 0; pointer-events: none; transition: opacity 0.3s ease, transform 0.3s ease;
@@ -116,7 +147,7 @@
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     #menu {
-      position: fixed; z-index: 4; left: 28px; bottom: 28px; width: min(440px, calc(100% - 40px));
+      position: absolute; z-index: 4; left: 28px; bottom: 28px; width: min(440px, calc(100% - 40px));
       padding: 22px 22px 18px; border-radius: 28px;
       background: rgba(255, 250, 242, 0.9); color: var(--ink);
       box-shadow: 0 18px 50px rgba(18, 40, 60, 0.22);
@@ -141,7 +172,7 @@
     #startBtn:hover, #resumeBtn:hover, #flapBtn:hover { filter: brightness(1.05); }
     .keys { margin-top: 12px; font-size: 12.5px; color: #3e5566; line-height: 1.5; }
     #pause {
-      position: fixed; inset: 0; z-index: 6; display: none;
+      position: absolute; inset: 0; z-index: 6; display: none;
       align-items: center; justify-content: center;
       background: rgba(8, 18, 32, 0.35);
     }
@@ -151,10 +182,11 @@
     }
     #pause h2 { font-family: Palatino, Georgia, serif; font-size: 36px; margin: 0 0 8px; }
     #corner {
-      position: fixed; top: 16px; right: 16px; z-index: 5; display: flex; gap: 8px;
+      position: absolute; top: 16px; right: 16px; z-index: 5; display: flex; gap: 8px;
     }
     body.playing #corner { top: auto; bottom: 16px; right: 16px; }
     #corner button, #fsBtn {
+      touch-action: manipulation;
       width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line);
       background: var(--glass); color: white; cursor: pointer; backdrop-filter: blur(8px);
       font-size: 16px;
@@ -169,7 +201,7 @@
     body.playing #menu { display: none; }
     body.paused #pause { display: flex; }
 
-    #touch { position: fixed; inset: 0; z-index: 4; pointer-events: none; display: none; }
+    #touch { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: none; }
     html.touch #touch { display: block; }
     #stick {
       pointer-events: auto; position: absolute; left: 22px; bottom: 22px;
@@ -209,6 +241,7 @@
   </style>
 </head>
 <body>
+  <div id="stage">
   <canvas id="view"></canvas>
   <div class="vignette"></div>
   <div id="fade"></div>
@@ -254,6 +287,9 @@
     <button id="fsBtn" type="button" title="На весь экран">⛶</button>
     <button id="btnPause" type="button" title="Пауза">II</button>
   </div>
+  <div id="safariHint">Смахните вверх, чтобы спрятать вкладки Safari</div>
+  </div>
+  <div id="safariSpacer"></div>
 
   <script src="vendor/three.min.js"></script>
   <script src="world.js"></script>
