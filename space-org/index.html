@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SPACE — структура компании</title>
+  <style>
+    :root {
+      --bg: #0b0e13;
+      --bg-2: #12171f;
+      --line: rgba(232, 238, 248, 0.14);
+      --text: #e8eef8;
+      --muted: rgba(210, 220, 235, 0.68);
+      --faint: rgba(210, 220, 235, 0.42);
+      --card: #141a23;
+      --ceo: #d7e4f8;
+      --product: #7eb6ff;
+      --growth: #5ddea8;
+      --finance: #ffb454;
+      --legal: #c4b5fd;
+      --people: #fda4af;
+      --sans: "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+      --mono: "Share Tech Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(1200px 500px at 50% -10%, rgba(126, 182, 255, 0.12), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.45;
+    }
+
+    .wrap {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 36px 0 64px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-end;
+      margin-bottom: 28px;
+    }
+    .mark {
+      font-family: var(--mono);
+      letter-spacing: 0.22em;
+      font-size: 12px;
+      color: var(--product);
+      margin: 0 0 8px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 650;
+      letter-spacing: -0.03em;
+    }
+    .lead {
+      margin: 8px 0 0;
+      max-width: 62ch;
+      color: var(--muted);
+    }
+    .goal {
+      margin: 0;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--bg-2);
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 280px;
+    }
+    .goal strong { color: var(--text); font-weight: 650; }
+
+    .org { margin-top: 8px; }
+
+    .ceo {
+      width: min(460px, 100%);
+      margin: 0 auto;
+      background: linear-gradient(180deg, #1c2633, #151b24);
+      border: 1px solid rgba(215, 228, 248, 0.35);
+      border-radius: 16px;
+      padding: 18px 20px 16px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+    }
+    .ceo .kicker { color: var(--ceo); }
+    .ceo h2 { font-size: 26px; }
+
+    .rail {
+      position: relative;
+      height: 36px;
+    }
+    .rail::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 0;
+      width: 1px;
+      height: 14px;
+      background: rgba(232, 238, 248, 0.28);
+    }
+
+    .depts {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+    }
+    .depts::before {
+      content: "";
+      position: absolute;
+      top: -22px;
+      left: calc((100% - 48px) / 10);
+      right: calc((100% - 48px) / 10);
+      height: 1px;
+      background: rgba(232, 238, 248, 0.28);
+    }
+    .dept {
+      position: relative;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px 14px 14px;
+      min-height: 280px;
+      display: flex;
+      flex-direction: column;
+    }
+    .dept::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: -22px;
+      width: 1px;
+      height: 22px;
+      background: rgba(232, 238, 248, 0.28);
+    }
+    .dept .bar {
+      height: 4px;
+      width: 42px;
+      border-radius: 99px;
+      margin-bottom: 14px;
+    }
+    .kicker {
+      margin: 0;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--faint);
+    }
+    h2, h3 {
+      margin: 6px 0 0;
+      letter-spacing: -0.02em;
+      font-weight: 650;
+    }
+    .dept h2 { font-size: 22px; line-height: 1.15; }
+    .why {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      flex: 1;
+    }
+    .place {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .place p { margin: 4px 0 0; }
+    .place .who { font-weight: 650; }
+    .place .out { color: var(--muted); font-size: 13px; }
+
+    .product h2 { color: var(--product); }
+    .product .bar { background: var(--product); }
+    .growth .bar { background: var(--growth); }
+    .growth h2 { color: var(--growth); }
+    .finance .bar { background: var(--finance); }
+    .finance h2 { color: var(--finance); }
+    .legal .bar { background: var(--legal); }
+    .legal h2 { color: var(--legal); }
+    .people .bar { background: var(--people); }
+    .people h2 { color: var(--people); }
+
+    section.block {
+      margin-top: 42px;
+    }
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    .section-title h2 {
+      margin: 0;
+      font-size: 22px;
+    }
+    .section-title p {
+      margin: 0;
+      color: var(--faint);
+      font-size: 13px;
+    }
+
+    .funnel, .phases {
+      display: grid;
+      gap: 10px;
+    }
+    .funnel { grid-template-columns: repeat(7, 1fr); }
+    .phases { grid-template-columns: repeat(4, 1fr); }
+
+    .step, .phase {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 12px 13px;
+      min-height: 132px;
+    }
+    .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      background: rgba(126, 182, 255, 0.12);
+      color: var(--product);
+      font-family: var(--mono);
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .step h3, .phase h3 { font-size: 16px; }
+    .step p, .phase p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .phase .when {
+      margin: 0 0 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--finance);
+    }
+
+    footer {
+      margin-top: 28px;
+      color: var(--faint);
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .depts { grid-template-columns: 1fr 1fr; }
+      .funnel { grid-template-columns: 1fr 1fr; }
+      .phases { grid-template-columns: 1fr 1fr; }
+      .dept::before, .depts::before, .rail { display: none; }
+      header { flex-direction: column; align-items: flex-start; }
+      .goal { max-width: none; }
+      .dept { min-height: 0; }
+    }
+    @media (max-width: 640px) {
+      .depts, .funnel, .phases { grid-template-columns: 1fr; }
+      .wrap { width: min(1180px, calc(100% - 20px)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <p class="mark">SPACE</p>
+        <h1>Публичная структура</h1>
+        <p class="lead">Пять линий под генеральным директором. Человек садится не в отдел, а на место с одним результатом к 30-му дню.</p>
+      </div>
+      <p class="goal"><strong>Цель.</strong> Размещение акций и выход на целевую капитализацию.</p>
+    </header>
+
+    <div class="org">
+      <article class="ceo">
+        <p class="kicker">Центр</p>
+        <h2>Генеральный директор</h2>
+        <p class="why">Держит историю для инвесторов и решает, какое место открывать следующим. После появления финансового директора историю рассказывают вдвоём.</p>
+      </article>
+      <div class="rail" aria-hidden="true"></div>
+      <div class="depts">
+        <article class="dept product">
+          <div class="bar"></div>
+          <p class="kicker">Линия</p>
+          <h2>Продукт</h2>
+          <p class="why">Актив, от которого считается капитализация: продукт, которым пользуются, и план следующих релизов.</p>
+          <div class="place">
+            <p class="kicker">Место</p>
+            <p class="who">Руководитель продукта</p>
+            <p class="out">К 30-му дню у следующего релиза есть дата, объём и критерий «готово».</p>
+          </div>
+        </article>
+        <article class="dept growth">
+          <div class="bar"></div>
+          <p class="kicker">Линия</p>
+          <h2>Рост и выручка</h2>
+          <p class="why">Траектория выручки, которую можно защитить. Без неё оценка остаётся презентацией.</p>
+          <div class="place">
+            <p class="kicker">Место</p>
+            <p class="who">Руководитель роста</p>
+            <p class="out">К 30-му дню один канал с посчитанной стоимостью привлечения и выручкой.</p>
+          </div>
+        </article>
+        <article class="dept finance">
+          <div class="bar"></div>
+          <p class="kicker">Линия</p>
+          <h2>Финансы и капитализация</h2>
+          <p class="why">Модель, таблица акционеров и мост от сегодняшней оценки к целевой.</p>
+          <div class="place">
+            <p class="kicker">Место</p>
+            <p class="who">Финансовый директор</p>
+            <p class="out">К 30-му дню видно, что уже доказано, что должно случиться до размещения и сколько на это нужно денег.</p>
+          </div>
+        </article>
+        <article class="dept legal">
+          <div class="bar"></div>
+          <p class="kicker">Линия</p>
+          <h2>Корпоративный блок</h2>
+          <p class="why">Чистая компания: доли, договоры, раскрытие и документы размещения.</p>
+          <div class="place">
+            <p class="kicker">Место</p>
+            <p class="who">Корпоративный юрист</p>
+            <p class="out">К 30-му дню есть список блокеров размещения и план их закрытия.</p>
+          </div>
+        </article>
+        <article class="dept people">
+          <div class="bar"></div>
+          <p class="kicker">Линия</p>
+          <h2>Люди</h2>
+          <p class="why">Воронка, которая сажает человека на место и через 30 дней подтверждает результат.</p>
+          <div class="place">
+            <p class="kicker">Место</p>
+            <p class="who">Руководитель людей</p>
+            <p class="out">У каждого открытого места есть стадия кандидата и дата решения.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <section class="block">
+      <div class="section-title">
+        <h2>Воронка мест</h2>
+        <p>Одна на всю компанию. Ведёт линия «Люди», решение принимает руководитель линии.</p>
+      </div>
+      <div class="funnel">
+        <article class="step">
+          <div class="num">01</div>
+          <h3>Открытое место</h3>
+          <p>На карте видны обязанность и результат к 30-му дню.</p>
+        </article>
+        <article class="step">
+          <div class="num">02</div>
+          <h3>Вход</h3>
+          <p>Отклик или рекомендация. Рекомендация не пропускает следующие шаги.</p>
+        </article>
+        <article class="step">
+          <div class="num">03</div>
+          <h3>Фильтр</h3>
+          <p>Делал ли человек этот результат и готов ли к горизонту до размещения.</p>
+        </article>
+        <article class="step">
+          <div class="num">04</div>
+          <h3>Проба</h3>
+          <p>Короткое задание в формате реальной работы места.</p>
+        </article>
+        <article class="step">
+          <div class="num">05</div>
+          <h3>Решение</h3>
+          <p>Руководитель линии говорит да или нет. Финансы участвуют, если место влияет на оценку.</p>
+        </article>
+        <article class="step">
+          <div class="num">06</div>
+          <h3>Посадка</h3>
+          <p>30 дней, один названный результат, сверка каждую неделю.</p>
+        </article>
+        <article class="step">
+          <div class="num">07</div>
+          <h3>Подтверждение</h3>
+          <p>Результат есть — место занято. Результата нет — место снова открыто.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="section-title">
+        <h2>Когда линия становится отдельным местом</h2>
+        <p>До этого функцию держит генеральный директор.</p>
+      </div>
+      <div class="phases">
+        <article class="phase">
+          <p class="when">Этап 1</p>
+          <h3>Актив</h3>
+          <p>Продукт и рост. Есть релиз и цифра выручки, которой вы сами верите.</p>
+        </article>
+        <article class="phase">
+          <p class="when">Этап 2</p>
+          <h3>Цифры</h3>
+          <p>Финансовый директор. Учёт, модель и таблица акционеров, которые можно проверить.</p>
+        </article>
+        <article class="phase">
+          <p class="when">Этап 3</p>
+          <h3>Окно размещения</h3>
+          <p>Корпоративный юрист рядом с финансами. Документы, раскрытие, площадка.</p>
+        </article>
+        <article class="phase">
+          <p class="when">Этап 4</p>
+          <h3>После размещения</h3>
+          <p>Те же пять линий. Новые места открываются, только если без них срывается обещанный план.</p>
+        </article>
+      </div>
+    </section>
+
+    <footer>
+      Целевая капитализация и дата размещения на карту ещё не нанесены. Когда будут три числа — капитализация, дата и выручка за месяц — каждое место можно оставить только если без него эта дата срывается.
+    </footer>
+  </div>
+</body>
+</html>
