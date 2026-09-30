@@ -1934,23 +1934,24 @@
   function fullscreenNode() {
     return document.fullscreenElement || document.webkitFullscreenElement || null;
   }
-  function requestFullscreen(el) {
-    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
-    if (!req) return Promise.reject(new Error("fullscreen"));
-    try {
-      const result = req.call(el);
-      return result && result.then ? result : Promise.resolve();
-    } catch (err) {
-      return Promise.reject(err);
-    }
+  function clearScreenBox() {
+    document.documentElement.style.width = "";
+    document.documentElement.style.height = "";
+    document.body.style.width = "";
+    document.body.style.height = "";
   }
-  function exitFullscreen() {
-    const exit = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
-    if (!exit) return;
-    try {
-      const result = exit.call(document);
-      if (result && result.catch) result.catch(function () {});
-    } catch (err) { /* already leaving */ }
+  function fillScreenBox() {
+    const landscape = window.innerWidth > window.innerHeight;
+    let sw = screen.width;
+    let sh = screen.height;
+    const dpr = window.devicePixelRatio || 1;
+    if (sw > window.innerWidth * 1.5) { sw /= dpr; sh /= dpr; }
+    const w = landscape ? Math.max(window.innerWidth, sw, sh) : window.innerWidth;
+    const h = landscape ? Math.max(window.innerHeight, Math.min(sw, sh)) : window.innerHeight;
+    document.documentElement.style.width = w + "px";
+    document.documentElement.style.height = h + "px";
+    document.body.style.width = w + "px";
+    document.body.style.height = h + "px";
   }
   function enterFill() {
     document.documentElement.classList.add("fs-fill");
@@ -1959,32 +1960,55 @@
     setTimeout(resize, 80);
     setTimeout(resize, 320);
   }
-  function leaveFill() {
-    document.documentElement.classList.remove("fs-fill");
+  function afterFullscreen() {
+    if (!fullscreenNode()) {
+      document.documentElement.classList.remove("fs-fill");
+      clearScreenBox();
+    }
     resize();
+    setTimeout(resize, 80);
+    setTimeout(resize, 320);
   }
-  document.getElementById("fsBtn").addEventListener("click", function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (fullscreenNode() || document.documentElement.classList.contains("fs-fill")) {
-      leaveFill();
-      exitFullscreen();
-      if (screen.orientation && screen.orientation.unlock) {
-        try { screen.orientation.unlock(); } catch (err) {}
+  function toggleFullscreen() {
+    const nativeOn = fullscreenNode();
+    if (nativeOn || document.documentElement.classList.contains("fs-fill")) {
+      document.documentElement.classList.remove("fs-fill");
+      clearScreenBox();
+      const exit = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
+      if (nativeOn && exit) {
+        const done = exit.call(document);
+        if (done && done.catch) done.catch(function () {});
       }
+      resize();
       return;
     }
-    requestFullscreen(document.documentElement).then(function () {
-      resize();
-      if (screen.orientation && screen.orientation.lock) {
-        screen.orientation.lock("landscape").catch(function () {});
-      }
-    }).catch(function () {
-      enterFill();
-    });
+    window.scrollTo(0, 0);
+    const landscape = window.innerWidth > window.innerHeight;
+    let el = landscape ? document.body : document.documentElement;
+    let req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
+    if (!req) {
+      el = document.documentElement;
+      req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
+    }
+    if (!req) { enterFill(); return; }
+    fillScreenBox();
+    let done;
+    try { done = req.call(el); }
+    catch (err) { enterFill(); return; }
+    if (done && done.then) {
+      done.then(function () { afterFullscreen(); }).catch(function () {
+        if (!fullscreenNode()) enterFill();
+      });
+    } else {
+      afterFullscreen();
+    }
+  }
+  document.getElementById("fsBtn").addEventListener("click", function (e) {
+    e.stopPropagation();
+    toggleFullscreen();
   });
-  document.addEventListener("fullscreenchange", resize);
-  document.addEventListener("webkitfullscreenchange", resize);
+  document.addEventListener("fullscreenchange", afterFullscreen);
+  document.addEventListener("webkitfullscreenchange", afterFullscreen);
   paintSound();
 
   window.__iskra = {

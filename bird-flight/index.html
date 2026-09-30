@@ -33,6 +33,14 @@
     html.fs-fill, html.fs-fill body {
       position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh;
     }
+    html:fullscreen, html:-webkit-full-screen,
+    body:fullscreen, body:-webkit-full-screen {
+      width: 100%; height: 100%; background: #8fd4ff;
+    }
+    html:fullscreen #view, html:-webkit-full-screen #view,
+    body:fullscreen #view, body:-webkit-full-screen #view {
+      width: 100%; height: 100%;
+    }
     #view {
       position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh;
       display: block; z-index: 0;
