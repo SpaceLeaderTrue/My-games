@@ -7,6 +7,10 @@ Walkable loft scene (WASD, mouse, or a phone joystick). Static copy of [bali-lof
 
 Open [`bali-loft/index.html`](bali-loft/index.html).
 
+## SPACE — структура
+
+Публичная карта отделов и воронка мест: [`space-org/index.html`](space-org/index.html).
+
 ## SPACE — Cockpit
 
 The original cockpit, plus a 3D chart you can fly through: stations and planets joined by routes. Same controls as before — WASD or arrows, Space or POWER for thrust, D / N / R on the gear lever.
