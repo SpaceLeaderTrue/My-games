@@ -3,12 +3,12 @@
 // each other. Audio uses a plain <audio> element (phones stay silent if the
 // remote track is played only through Web Audio).
 
-const TOPIC = "si3d/loft/v1";
+const TOPIC = "si3d/loft/v2";
 const BROKERS = [
   "wss://broker.hivemq.com:8884/mqtt",
   "wss://broker.emqx.io:8084/mqtt",
-  "wss://test.mosquitto.org:8081",
-  "wss://mqtt.eclipseprojects.io/mqtt",
+  "wss://mqtt.tyckr.io:8081",
+  "wss://broker.laboverwire.com:8443/mqtt",
 ];
 const ICE = [
   { urls: "stun:stun.l.google.com:19302" },
@@ -67,13 +67,29 @@ window.__localCam = null;
 let mqttOk = false;
 let broker = "";
 let lastErr = "";
-let sockGen = 0;
 let ws = null;
-let rx = new Uint8Array(0);
 const links = new Map();
 const remotes = {};
 const pendingIce = new Map();
+const sockets = new Map();
+const roomStarted = Date.now();
 window.__remotes = remotes;
+
+function anyOk() {
+  for (const s of sockets.values()) {
+    if (s.ok && s.ws && s.ws.readyState === WebSocket.OPEN) return true;
+  }
+  return false;
+}
+function linkDown() {
+  return !anyOk() && Date.now() - roomStarted > 4000;
+}
+function rememberBrokers() {
+  const up = [];
+  for (const s of sockets.values()) if (s.ok) up.push(s.url);
+  broker = up.join(" | ");
+  mqttOk = up.length > 0;
+}
 
 function micTrack() {
   return localStream ? localStream.getAudioTracks()[0] || null : null;
@@ -95,6 +111,7 @@ function heardCount() {
 function label() {
   const n = heardCount();
   const near = remoteCount();
+  if (linkDown()) return near ? `Нет связи · ${near}` : "Нет связи";
   if (phase === "joining") return "Подключаем…";
   if (phase === "denied") return "Нет доступа";
   if (phase === "muted") return "Микрофон выкл";
@@ -114,11 +131,14 @@ function paint() {
   const dot = status.querySelector(".dot");
   const heard = heardCount();
   const near = remoteCount();
-  const text =
-    phase === "live" || phase === "muted"
+  const text = linkDown()
+    ? "нет связи с островом"
+    : phase === "live" || phase === "muted"
       ? heard
         ? `в эфире · слышно ${heard}`
-        : "в эфире · микрофон включён"
+        : near
+          ? `в эфире · на острове ${near}`
+          : "в эфире · микрофон включён"
       : near
         ? `в эфире · на острове ${near}`
         : "в эфире · 4 экрана";
@@ -187,11 +207,17 @@ function readRL(buf, offset) {
   }
 }
 
+let msgSeq = 0;
+const seenMid = new Map();
 function send(obj) {
-  if (!mqttOk || !ws || ws.readyState !== WebSocket.OPEN) return;
-  try {
-    ws.send(mqttPub(TOPIC, JSON.stringify(obj)));
-  } catch {}
+  if (!obj.mid) obj.mid = myId + "-" + (++msgSeq);
+  const pkt = mqttPub(TOPIC, JSON.stringify(obj));
+  let n = 0;
+  for (const s of sockets.values()) {
+    if (!s.ok || !s.ws || s.ws.readyState !== WebSocket.OPEN) continue;
+    try { s.ws.send(pkt); n++; } catch {}
+  }
+  mqttOk = n > 0;
 }
 
 function closeLink(id) {
@@ -465,6 +491,14 @@ function onMsg(text) {
   let msg;
   try { msg = JSON.parse(text); } catch { return; }
   if (!msg || typeof msg !== "object") return;
+  if (msg.mid) {
+    const now = Date.now();
+    if (seenMid.has(msg.mid)) return;
+    seenMid.set(msg.mid, now);
+    if (seenMid.size > 500) {
+      for (const [k, t] of seenMid) if (now - t > 20000) seenMid.delete(k);
+    }
+  }
   if (msg.t === "hi") onHi(msg);
   else if (msg.t === "pos") onPos(msg);
   else if (msg.t === "bye" && msg.id && msg.id !== myId) dropPeer(msg.id);
@@ -473,18 +507,20 @@ function onMsg(text) {
   else if (msg.t === "ice") onIce(msg);
 }
 
-function onPkt(pkt, rl) {
+function onPkt(state, pkt, rl) {
   const type = pkt[0] & 0xf0;
   if (type === 0x20) {
     const code = pkt[1 + rl.size + 1];
     if (code !== 0) {
       lastErr = "connack " + code;
-      try { ws.close(); } catch {}
+      try { state.ws.close(); } catch {}
       return;
     }
-    mqttOk = true;
-    try { ws.send(mqttSub(TOPIC)); } catch {}
+    state.ok = true;
+    rememberBrokers();
+    try { state.ws.send(mqttSub(TOPIC)); } catch {}
     publishHi();
+    paint();
     return;
   }
   if (type !== 0x30) return;
@@ -499,52 +535,64 @@ function onPkt(pkt, rl) {
   onMsg(dec.decode(body.subarray(off)));
 }
 
-function feed(buf) {
+function feed(state, buf) {
   const chunk = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
-  const n = new Uint8Array(rx.length + chunk.length);
-  n.set(rx);
-  n.set(chunk, rx.length);
-  rx = n;
-  while (rx.length > 2) {
-    const rl = readRL(rx, 1);
+  const n = new Uint8Array(state.rx.length + chunk.length);
+  n.set(state.rx);
+  n.set(chunk, state.rx.length);
+  state.rx = n;
+  while (state.rx.length > 2) {
+    const rl = readRL(state.rx, 1);
     if (!rl) return;
     const total = 1 + rl.size + rl.value;
-    if (rx.length < total) return;
-    const pkt = rx.slice(0, total);
-    rx = rx.slice(total);
-    onPkt(pkt, rl);
+    if (state.rx.length < total) return;
+    const pkt = state.rx.slice(0, total);
+    state.rx = state.rx.slice(total);
+    onPkt(state, pkt, rl);
   }
 }
 
-function connectMQTT() {
-  const gen = ++sockGen;
-  const url = BROKERS[(gen - 1) % BROKERS.length];
-  broker = url;
-  mqttOk = false;
-  rx = new Uint8Array(0);
+function connectOne(url) {
+  const prev = sockets.get(url);
+  const gen = (prev && prev.gen > 0 ? prev.gen : 0) + 1;
+  if (prev && prev.ws) {
+    prev.gen = -1;
+    try { prev.ws.onclose = null; prev.ws.close(); } catch {}
+  }
+  const state = { url, gen, ok: false, ws: null, rx: new Uint8Array(0) };
+  sockets.set(url, state);
   let socket;
   try { socket = new WebSocket(url, "mqtt"); }
-  catch { setTimeout(() => { if (gen === sockGen) connectMQTT(); }, 900); return; }
+  catch {
+    setTimeout(() => { const cur = sockets.get(url); if (cur && cur.gen === gen) connectOne(url); }, 1200);
+    return;
+  }
+  state.ws = socket;
   ws = socket;
   socket.binaryType = "arraybuffer";
-  const failTimer = setTimeout(() => { try { if (gen === sockGen) socket.close(); } catch {} }, 9000);
+  const failTimer = setTimeout(() => { try { if (sockets.get(url) && sockets.get(url).gen === gen) socket.close(); } catch {} }, 8000);
   socket.onopen = () => {
-    if (gen !== sockGen) return;
+    if (!sockets.get(url) || sockets.get(url).gen !== gen) return;
     const cid = "si" + Math.random().toString(36).slice(2, 12);
     try { socket.send(mqttConnect(cid)); } catch {}
   };
   socket.onmessage = (ev) => {
-    if (gen !== sockGen) return;
+    if (!sockets.get(url) || sockets.get(url).gen !== gen) return;
     clearTimeout(failTimer);
-    feed(ev.data);
+    feed(state, ev.data);
   };
   socket.onerror = () => { lastErr = "ws " + url; try { socket.close(); } catch {} };
   socket.onclose = () => {
-    if (gen !== sockGen) return;
-    mqttOk = false;
-    for (const id of [...links.keys()]) closeLink(id);
-    setTimeout(() => { if (gen === sockGen) connectMQTT(); }, 800);
+    if (!sockets.get(url) || sockets.get(url).gen !== gen) return;
+    state.ok = false;
+    rememberBrokers();
+    paint();
+    setTimeout(() => { const cur = sockets.get(url); if (cur && cur.gen === gen) connectOne(url); }, 1200);
   };
+}
+
+function connectMQTT() {
+  for (const url of BROKERS) connectOne(url);
 }
 
 function pose() {
@@ -620,8 +668,10 @@ setInterval(() => {
 }, 800);
 
 setInterval(() => {
-  if (mqttOk && ws && ws.readyState === WebSocket.OPEN) {
-    try { ws.send(new Uint8Array([0xc0, 0x00])); } catch {}
+  for (const s of sockets.values()) {
+    if (s.ok && s.ws && s.ws.readyState === WebSocket.OPEN) {
+      try { s.ws.send(new Uint8Array([0xc0, 0x00])); } catch {}
+    }
   }
 }, 20000);
 
