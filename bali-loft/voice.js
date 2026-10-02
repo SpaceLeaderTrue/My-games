@@ -344,8 +344,10 @@ function onIce(msg) {
 
 function onHi(msg) {
   if (!msg.id || msg.id === myId) return;
+  const prev = remotes[msg.id];
   remotes[msg.id] = {
     x: msg.x, y: msg.y, z: msg.z,
+    yaw: Number.isFinite(+msg.yaw) ? +msg.yaw : prev && prev.yaw,
     name: msg.name || NAMES[hash(msg.id) % NAMES.length],
     color: msg.color || COLORS[hash(msg.id) % COLORS.length],
     mic: !!msg.mic,
@@ -365,6 +367,7 @@ function onMsg(text) {
   try { msg = JSON.parse(text); } catch { return; }
   if (!msg || typeof msg !== "object") return;
   if (msg.t === "hi") onHi(msg);
+  else if (msg.t === "pos") onPos(msg);
   else if (msg.t === "bye" && msg.id && msg.id !== myId) dropPeer(msg.id);
   else if (msg.t === "offer") onOffer(msg).catch(() => {});
   else if (msg.t === "answer") onAnswer(msg).catch(() => {});
@@ -445,21 +448,66 @@ function connectMQTT() {
   };
 }
 
+function pose() {
+  const p = window.__pos;
+  if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.z)) return null;
+  const r = (n) => Math.round(n * 100) / 100;
+  return {
+    x: r(p.x),
+    y: r(Number.isFinite(p.y) ? p.y : 0),
+    z: r(p.z),
+    yaw: r(Number.isFinite(p.yaw) ? p.yaw : 0),
+  };
+}
+
+function onPos(msg) {
+  if (!msg.id || msg.id === myId) return;
+  if (!Number.isFinite(+msg.x) || !Number.isFinite(+msg.z)) return;
+  const prev = remotes[msg.id];
+  remotes[msg.id] = {
+    x: +msg.x,
+    y: Number.isFinite(+msg.y) ? +msg.y : 0,
+    z: +msg.z,
+    yaw: Number.isFinite(+msg.yaw) ? +msg.yaw : prev && prev.yaw,
+    name: (prev && prev.name) || NAMES[hash(msg.id) % NAMES.length],
+    color: (prev && prev.color) || COLORS[hash(msg.id) % COLORS.length],
+    mic: prev ? !!prev.mic : false,
+    at: Date.now(),
+  };
+}
+
 function publishHi() {
   if (!mqttOk) return;
-  const p = window.__pos;
-  if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.z)) return;
+  const p = pose();
+  if (!p) return;
   send({
     t: "hi",
     id: myId,
     x: p.x,
-    y: Number.isFinite(p.y) ? p.y : 0,
+    y: p.y,
     z: p.z,
+    yaw: p.yaw,
     name: myName,
     color: myColor,
     mic: phase === "live",
   });
 }
+
+let lastPose = null;
+function publishPos() {
+  if (!mqttOk) return;
+  const p = pose();
+  if (!p) return;
+  if (lastPose) {
+    const d = Math.hypot(p.x - lastPose.x, p.z - lastPose.z);
+    const turn = Math.abs(Math.atan2(Math.sin(p.yaw - lastPose.yaw), Math.cos(p.yaw - lastPose.yaw)));
+    if (d < 0.04 && Math.abs(p.y - lastPose.y) < 0.04 && turn < 0.06) return;
+  }
+  lastPose = p;
+  send({ t: "pos", id: myId, x: p.x, y: p.y, z: p.z, yaw: p.yaw });
+}
+
+setInterval(publishPos, 100);
 
 setInterval(() => {
   publishHi();
