@@ -42,8 +42,20 @@ function rid() {
 }
 
 const myId = rid();
-const myName = NAMES[hash(myId) % NAMES.length];
 const myColor = COLORS[hash(myId) % COLORS.length];
+const NAME_KEY = "si3d-name";
+
+function cleanName(raw) {
+  return String(raw || "").replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim().slice(0, 16);
+}
+function fallbackName() {
+  return NAMES[hash(myId) % NAMES.length];
+}
+let myName = fallbackName();
+try {
+  const saved = cleanName(localStorage.getItem(NAME_KEY));
+  if (saved) myName = saved;
+} catch {}
 
 let phase = "off";
 let localStream = null;
@@ -348,7 +360,7 @@ function onHi(msg) {
   remotes[msg.id] = {
     x: msg.x, y: msg.y, z: msg.z,
     yaw: Number.isFinite(+msg.yaw) ? +msg.yaw : prev && prev.yaw,
-    name: msg.name || NAMES[hash(msg.id) % NAMES.length],
+    name: cleanName(msg.name) || (prev && prev.name) || NAMES[hash(msg.id) % NAMES.length],
     color: msg.color || COLORS[hash(msg.id) % COLORS.length],
     mic: !!msg.mic,
     at: Date.now(),
@@ -469,7 +481,7 @@ function onPos(msg) {
     y: Number.isFinite(+msg.y) ? +msg.y : 0,
     z: +msg.z,
     yaw: Number.isFinite(+msg.yaw) ? +msg.yaw : prev && prev.yaw,
-    name: (prev && prev.name) || NAMES[hash(msg.id) % NAMES.length],
+    name: cleanName(msg.name) || (prev && prev.name) || NAMES[hash(msg.id) % NAMES.length],
     color: (prev && prev.color) || COLORS[hash(msg.id) % COLORS.length],
     mic: prev ? !!prev.mic : false,
     at: Date.now(),
@@ -504,7 +516,7 @@ function publishPos() {
     if (d < 0.04 && Math.abs(p.y - lastPose.y) < 0.04 && turn < 0.06) return;
   }
   lastPose = p;
-  send({ t: "pos", id: myId, x: p.x, y: p.y, z: p.z, yaw: p.yaw });
+  send({ t: "pos", id: myId, x: p.x, y: p.y, z: p.z, yaw: p.yaw, name: myName });
 }
 
 setInterval(publishPos, 100);
@@ -570,12 +582,64 @@ function hangup() {
   paint();
 }
 
+function commitName() {
+  const input = document.getElementById("my-name");
+  const typed = input ? cleanName(input.value) : "";
+  try { localStorage.setItem(NAME_KEY, typed); } catch {}
+  const next = typed || fallbackName();
+  if (next === myName) return;
+  myName = next;
+  publishHi();
+}
+function parkName() {
+  const hint = document.getElementById("lock-hint");
+  const stack = document.getElementById("start-stack");
+  const wrap = document.getElementById("name-wrap");
+  const controls = document.querySelector(".controls");
+  if (!hint || !wrap || !controls || !hint.classList.contains("hide")) return;
+  controls.insertBefore(wrap, controls.firstChild);
+  if (stack) stack.classList.add("hide");
+}
+function bindName() {
+  const input = document.getElementById("my-name");
+  if (!input || input.dataset.bound) return;
+  input.dataset.bound = "1";
+  try {
+    const saved = cleanName(localStorage.getItem(NAME_KEY));
+    if (saved) input.value = saved;
+  } catch {}
+  let timer = 0;
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(commitName, 250);
+  });
+  input.addEventListener("change", commitName);
+  input.addEventListener("blur", commitName);
+  const hint = document.getElementById("lock-hint");
+  if (hint) hint.addEventListener("pointerdown", commitName, true);
+  input.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitName();
+      input.blur();
+    }
+  });
+  input.addEventListener("pointerdown", () => {
+    try { document.exitPointerLock(); } catch {}
+  });
+  if (hint) new MutationObserver(parkName).observe(hint, { attributes: true, attributeFilter: ["class"] });
+  document.addEventListener("pointerlockchange", parkName);
+  parkName();
+}
+
 document.addEventListener("pointerdown", kickAudio, true);
 document.addEventListener("touchend", kickAudio, true);
 document.addEventListener("keydown", kickAudio, true);
 window.addEventListener("pagehide", () => send({ t: "bye", id: myId }));
 
 connectMQTT();
+bindName();
 paint();
 
 window.__spaceVoice = {
