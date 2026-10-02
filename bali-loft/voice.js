@@ -58,7 +58,12 @@ try {
 } catch {}
 
 let phase = "off";
+let videoPhase = "off";
 let localStream = null;
+let camStream = null;
+let localVid = null;
+window.__camFeeds = [];
+window.__localCam = null;
 let mqttOk = false;
 let broker = "";
 let lastErr = "";
@@ -72,6 +77,9 @@ window.__remotes = remotes;
 
 function micTrack() {
   return localStream ? localStream.getAudioTracks()[0] || null : null;
+}
+function camTrack() {
+  return camStream ? camStream.getVideoTracks()[0] || null : null;
 }
 function remoteCount() {
   return Object.keys(remotes).length;
@@ -194,6 +202,10 @@ function closeLink(id) {
   if (L.audio) {
     try { L.audio.pause(); L.audio.srcObject = null; L.audio.remove(); } catch {}
   }
+  if (L.video) {
+    try { L.video.pause(); L.video.srcObject = null; L.video.remove(); } catch {}
+  }
+  publishFeeds();
 }
 
 function dropPeer(id) {
@@ -205,8 +217,17 @@ function dropPeer(id) {
 
 function kickAudio() {
   for (const L of links.values()) {
-    if (!L.audio) continue;
-    const p = L.audio.play();
+    if (L.audio) {
+      const p = L.audio.play();
+      if (p && p.catch) p.catch(() => {});
+    }
+    if (L.video && L.video.paused) {
+      const p = L.video.play();
+      if (p && p.catch) p.catch(() => {});
+    }
+  }
+  if (localVid && videoPhase === "live" && localVid.paused) {
+    const p = localVid.play();
     if (p && p.catch) p.catch(() => {});
   }
 }
@@ -240,9 +261,50 @@ function volumeFor(id) {
   return 1 - ((d - 40) / 180) * 0.28;
 }
 
+function audioTr(pc) {
+  return pc.getTransceivers().find((t) => t.receiver && t.receiver.track && t.receiver.track.kind === "audio") || null;
+}
+function videoTr(pc) {
+  return pc.getTransceivers().find((t) => t.receiver && t.receiver.track && t.receiver.track.kind === "video") || null;
+}
+
+function publishFeeds() {
+  const list = [];
+  for (const [id, L] of links) {
+    if (!L.video) continue;
+    L.video.dataset.who = (remotes[id] && remotes[id].name) || L.video.dataset.who || "";
+    list.push(L.video);
+  }
+  window.__camFeeds = list;
+  window.__localCam = videoPhase === "live" && localVid ? localVid : null;
+  if (localVid) localVid.dataset.who = myName;
+}
+
+function attachVideo(id, track) {
+  const L = links.get(id);
+  if (!L || !track) return;
+  if (!L.video) {
+    const el = document.createElement("video");
+    el.autoplay = true;
+    el.muted = true;
+    el.playsInline = true;
+    el.setAttribute("playsinline", "");
+    el.setAttribute("webkit-playsinline", "");
+    el.style.cssText = "position:absolute;left:0;top:0;width:160px;height:120px;opacity:0.02;pointer-events:none";
+    document.body.appendChild(el);
+    L.video = el;
+  }
+  const stream = new MediaStream([track]);
+  if (L.video.srcObject !== stream) L.video.srcObject = stream;
+  L.video.dataset.who = (remotes[id] && remotes[id].name) || "";
+  const p = L.video.play();
+  if (p && p.catch) p.catch(() => {});
+  publishFeeds();
+}
+
 function makePC(id) {
   const pc = new RTCPeerConnection({ iceServers: ICE });
-  const L = { pc, audio: null, queue: [], gen: 0, offered: false, offerAt: 0, making: false };
+  const L = { pc, audio: null, video: null, queue: [], gen: 0, offered: false, offerAt: 0, making: false };
   links.set(id, L);
   pc.onicecandidate = (ev) => {
     if (links.get(id) !== L || !ev.candidate) return;
@@ -250,6 +312,10 @@ function makePC(id) {
   };
   pc.ontrack = (ev) => {
     if (links.get(id) !== L) return;
+    if (ev.track && ev.track.kind === "video") {
+      attachVideo(id, ev.track);
+      return;
+    }
     const stream = (ev.streams && ev.streams[0]) || new MediaStream([ev.track]);
     attachAudio(id, stream);
     paint();
@@ -273,13 +339,26 @@ function flushIce(L, id) {
 async function pushMic(track) {
   let reopen = false;
   for (const L of links.values()) {
-    const tr = L.pc.getTransceivers()[0];
+    const tr = audioTr(L.pc);
     if (!tr || !tr.sender) continue;
     const cur = tr.currentDirection;
     try { await tr.sender.replaceTrack(track || null); } catch {}
     if (track && cur && cur !== "sendrecv" && cur !== "sendonly") reopen = true;
   }
   if (reopen) for (const id of [...links.keys()]) closeLink(id);
+}
+
+async function pushCam(track) {
+  let reopen = false;
+  for (const L of links.values()) {
+    const tr = videoTr(L.pc);
+    if (!tr || !tr.sender) { reopen = !!track; continue; }
+    const cur = tr.currentDirection;
+    try { await tr.sender.replaceTrack(track || null); } catch {}
+    if (track && cur && cur !== "sendrecv" && cur !== "sendonly") reopen = true;
+  }
+  if (reopen) for (const id of [...links.keys()]) closeLink(id);
+  publishFeeds();
 }
 
 async function offerTo(id) {
@@ -290,11 +369,16 @@ async function offerTo(id) {
   L.making = true;
   try {
     L.gen += 1;
-    if (L.pc.getTransceivers().length === 0) L.pc.addTransceiver("audio", { direction: "sendrecv" });
-    const tr = L.pc.getTransceivers()[0];
+    if (!audioTr(L.pc)) L.pc.addTransceiver("audio", { direction: "sendrecv" });
+    if (!videoTr(L.pc)) L.pc.addTransceiver("video", { direction: "sendrecv" });
+    const tr = audioTr(L.pc);
+    const vr = videoTr(L.pc);
     if (tr) tr.direction = "sendrecv";
+    if (vr) vr.direction = "sendrecv";
     const track = micTrack();
     if (tr && track) await tr.sender.replaceTrack(track);
+    const cam = camTrack();
+    if (vr && cam) await vr.sender.replaceTrack(cam);
     const offer = await L.pc.createOffer();
     if (links.get(id) !== L) return;
     await L.pc.setLocalDescription(offer);
@@ -316,10 +400,13 @@ async function onOffer(msg) {
   L = makePC(msg.from);
   L.gen = msg.gen;
   await L.pc.setRemoteDescription({ type: "offer", sdp: msg.sdp });
-  const tr = L.pc.getTransceivers()[0];
-  if (tr) tr.direction = "sendrecv";
+  for (const tr of L.pc.getTransceivers()) tr.direction = "sendrecv";
+  const tr = audioTr(L.pc);
+  const vr = videoTr(L.pc);
   const track = micTrack();
   if (tr && track) await tr.sender.replaceTrack(track);
+  const cam = camTrack();
+  if (vr && cam) await vr.sender.replaceTrack(cam);
   const answer = await L.pc.createAnswer();
   if (links.get(msg.from) !== L) return;
   await L.pc.setLocalDescription(answer);
@@ -528,6 +615,8 @@ setInterval(() => {
     if (now - remotes[id].at > 12000) dropPeer(id);
   }
   for (const [id, L] of links) if (L.audio) L.audio.volume = volumeFor(id);
+  publishFeeds();
+  kickAudio();
 }, 800);
 
 setInterval(() => {
@@ -579,6 +668,17 @@ function hangup() {
   pushMic(null);
   if (track) phase = "off";
   phase = "off";
+  const cam = camTrack();
+  if (cam) cam.stop();
+  camStream = null;
+  videoPhase = "off";
+  window.__localCam = null;
+  pushCam(null);
+  const camBtn = document.getElementById("btn-cam");
+  if (camBtn) {
+    camBtn.classList.remove("on");
+    camBtn.textContent = "Камера";
+  }
   paint();
 }
 
@@ -589,6 +689,8 @@ function commitName() {
   const next = typed || fallbackName();
   if (next === myName) return;
   myName = next;
+  if (localVid) localVid.dataset.who = myName;
+  publishFeeds();
   publishHi();
 }
 function parkName() {
@@ -642,8 +744,66 @@ connectMQTT();
 bindName();
 paint();
 
+function paintCam() {
+  const b = document.getElementById("btn-cam");
+  if (!b) return;
+  b.classList.toggle("on", videoPhase === "live");
+  b.textContent = videoPhase === "live" ? "Вас видно" : videoPhase === "denied" ? "Нет камеры" : "Камера";
+}
+
+async function toggleVideo() {
+  kickAudio();
+  if (videoPhase === "live") {
+    const track = camTrack();
+    if (track) track.stop();
+    camStream = null;
+    videoPhase = "off";
+    if (localVid) localVid.srcObject = null;
+    window.__localCam = null;
+    await pushCam(null);
+    paintCam();
+    return;
+  }
+  let stream = null;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false,
+    });
+  } catch {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    } catch {
+      videoPhase = "denied";
+      paintCam();
+      return;
+    }
+  }
+  camStream = stream;
+  videoPhase = "live";
+  if (!localVid) {
+    localVid = document.createElement("video");
+    localVid.autoplay = true;
+    localVid.muted = true;
+    localVid.playsInline = true;
+    localVid.setAttribute("playsinline", "");
+    localVid.setAttribute("webkit-playsinline", "");
+    localVid.style.cssText = "position:absolute;left:0;top:0;width:160px;height:120px;opacity:0.02;pointer-events:none";
+    document.body.appendChild(localVid);
+  }
+  localVid.srcObject = camStream;
+  localVid.dataset.who = myName;
+  const play = localVid.play();
+  if (play && play.catch) play.catch(() => {});
+  window.__localCam = localVid;
+  await pushCam(camTrack());
+  publishFeeds();
+  paintCam();
+}
+
 window.__spaceVoice = {
   toggle,
+  toggleVideo,
   hangup,
   debug() {
     return {
