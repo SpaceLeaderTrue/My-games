@@ -476,6 +476,7 @@ function onHi(msg) {
     name: cleanName(msg.name) || (prev && prev.name) || NAMES[hash(msg.id) % NAMES.length],
     color: msg.color || COLORS[hash(msg.id) % COLORS.length],
     mic: !!msg.mic,
+    mount: msg.mount === "horse" || msg.mount === "ski" ? msg.mount : "",
     at: Date.now(),
   };
   if (myId > msg.id) {
@@ -599,11 +600,13 @@ function pose() {
   const p = window.__pos;
   if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.z)) return null;
   const r = (n) => Math.round(n * 100) / 100;
+  const mount = p.mount === "horse" || p.mount === "ski" ? p.mount : "";
   return {
     x: r(p.x),
     y: r(Number.isFinite(p.y) ? p.y : 0),
     z: r(p.z),
     yaw: r(Number.isFinite(p.yaw) ? p.yaw : 0),
+    mount,
   };
 }
 
@@ -619,6 +622,7 @@ function onPos(msg) {
     name: cleanName(msg.name) || (prev && prev.name) || NAMES[hash(msg.id) % NAMES.length],
     color: (prev && prev.color) || COLORS[hash(msg.id) % COLORS.length],
     mic: prev ? !!prev.mic : false,
+    mount: msg.mount === "horse" || msg.mount === "ski" ? msg.mount : (prev && prev.mount) || "",
     at: Date.now(),
   };
 }
@@ -637,6 +641,7 @@ function publishHi() {
     name: myName,
     color: myColor,
     mic: phase === "live",
+    mount: p.mount || "",
   });
 }
 
@@ -648,10 +653,10 @@ function publishPos() {
   if (lastPose) {
     const d = Math.hypot(p.x - lastPose.x, p.z - lastPose.z);
     const turn = Math.abs(Math.atan2(Math.sin(p.yaw - lastPose.yaw), Math.cos(p.yaw - lastPose.yaw)));
-    if (d < 0.04 && Math.abs(p.y - lastPose.y) < 0.04 && turn < 0.06) return;
+    if (d < 0.04 && Math.abs(p.y - lastPose.y) < 0.04 && turn < 0.06 && lastPose.mount === p.mount) return;
   }
   lastPose = p;
-  send({ t: "pos", id: myId, x: p.x, y: p.y, z: p.z, yaw: p.yaw, name: myName });
+  send({ t: "pos", id: myId, x: p.x, y: p.y, z: p.z, yaw: p.yaw, name: myName, mount: p.mount || "" });
 }
 
 setInterval(publishPos, 100);
@@ -748,8 +753,16 @@ function parkName() {
   const stack = document.getElementById("start-stack");
   const wrap = document.getElementById("name-wrap");
   const controls = document.querySelector(".controls");
-  if (!hint || !wrap || !controls || !hint.classList.contains("hide")) return;
-  controls.insertBefore(wrap, controls.firstChild);
+  const top = document.querySelector(".hud-top");
+  if (!hint || !wrap || !hint.classList.contains("hide")) return;
+  const touch = document.body.classList.contains("touch-device") || navigator.maxTouchPoints > 0 || "ontouchstart" in window || window.matchMedia("(pointer: coarse)").matches;
+  if (touch && top) {
+    top.appendChild(wrap);
+    wrap.classList.add("name-dock");
+  } else if (controls) {
+    wrap.classList.remove("name-dock");
+    controls.insertBefore(wrap, controls.firstChild);
+  }
   if (stack) stack.classList.add("hide");
 }
 function bindName() {
