@@ -1940,23 +1940,19 @@
   function fullscreenNode() {
     return document.fullscreenElement || document.webkitFullscreenElement || null;
   }
-  function iosFamily() {
-    const ua = navigator.userAgent || "";
-    const touchMac = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
-    if (/iPhone|iPod/.test(ua)) return "iphone";
-    if (/iPad/.test(ua) || touchMac) return "ipad";
-    return "";
-  }
-  function screenSpan() {
-    const landscape = window.innerWidth > window.innerHeight;
-    const shortSide = Math.min(screen.width, screen.height);
-    const longSide = Math.max(screen.width, screen.height);
-    return landscape ? shortSide : longSide;
-  }
-  function safariBarsOpen() {
+  function viewportHeight() {
     const vv = window.visualViewport;
-    const h = vv ? vv.height + Math.max(0, vv.offsetTop) : window.innerHeight;
-    return h < screenSpan() - 28;
+    return vv ? vv.height : window.innerHeight;
+  }
+  const fsBtn = document.getElementById("fsBtn");
+  let barBaseline = 0;
+  function immersiveOn() {
+    return !!(fullscreenNode() || document.documentElement.classList.contains("fs-fill") || document.documentElement.classList.contains("safari-scroll"));
+  }
+  function paintFsButton() {
+    const on = immersiveOn();
+    fsBtn.textContent = on ? "✕" : "⛶";
+    fsBtn.setAttribute("aria-pressed", on ? "true" : "false");
   }
   function clearScreenBox() {
     document.documentElement.style.width = "";
@@ -1966,24 +1962,39 @@
     document.documentElement.style.removeProperty("--vv-h");
   }
   function enterSafariScrollMode() {
+    barBaseline = viewportHeight();
     document.documentElement.classList.remove("fs-fill");
     document.documentElement.classList.add("safari-scroll");
     window.scrollTo(0, 0);
+    paintFsButton();
     resize();
   }
   function lockSafariBars() {
-    const vv = window.visualViewport;
-    const h = vv ? vv.height : window.innerHeight;
-    document.documentElement.style.setProperty("--vv-h", Math.round(h) + "px");
+    document.documentElement.style.setProperty("--vv-h", Math.round(viewportHeight()) + "px");
     document.documentElement.classList.remove("safari-scroll");
     document.documentElement.classList.add("fs-fill");
+    const stage = document.getElementById("stage");
+    if (stage) stage.style.transform = "";
     window.scrollTo(0, 0);
+    paintFsButton();
     resize();
     setTimeout(resize, 80);
   }
+  function holdStage() {
+    const stage = document.getElementById("stage");
+    if (!stage) return;
+    if (!document.documentElement.classList.contains("safari-scroll")) {
+      stage.style.transform = "";
+      return;
+    }
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    stage.style.transform = y ? "translateY(" + y + "px)" : "";
+  }
   function watchSafariBars() {
     if (!document.documentElement.classList.contains("safari-scroll")) return;
-    if (!safariBarsOpen()) lockSafariBars();
+    holdStage();
+    const h = viewportHeight();
+    if (h > barBaseline + 48) lockSafariBars();
   }
   function exitNative() {
     const exit = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
@@ -1996,8 +2007,11 @@
     document.documentElement.classList.remove("safari-scroll");
     document.documentElement.classList.remove("fs-fill");
     clearScreenBox();
+    const stage = document.getElementById("stage");
+    if (stage) stage.style.transform = "";
     window.scrollTo(0, 0);
     exitNative();
+    paintFsButton();
     resize();
   }
   function afterFullscreen() {
@@ -2005,64 +2019,68 @@
       document.documentElement.classList.remove("safari-scroll");
       document.documentElement.classList.remove("fs-fill");
     }
+    paintFsButton();
     resize();
     setTimeout(resize, 80);
     setTimeout(resize, 320);
   }
-  function fullscreenFallback() {
-    if (iosFamily()) enterSafariScrollMode();
-    else {
-      document.documentElement.classList.add("fs-fill");
-      resize();
-    }
+  function fullscreenRequest(el) {
+    if (!el) return false;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
+    if (!req) return false;
+    return req.call(el);
   }
   function toggleFullscreen() {
-    const html = document.documentElement;
-    if (fullscreenNode() || html.classList.contains("fs-fill") || html.classList.contains("safari-scroll")) {
+    if (immersiveOn()) {
       exitImmersive();
       return;
     }
-    const el = document.getElementById("stage") || html;
-    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
-    if (!req) { fullscreenFallback(); return; }
-    let done;
-    try { done = req.call(el); }
-    catch (err) { fullscreenFallback(); return; }
+    let done = false;
+    try { done = fullscreenRequest(document.getElementById("stage")); }
+    catch (err) { done = false; }
+    if (done === false) {
+      try { done = fullscreenRequest(document.documentElement); }
+      catch (err2) { done = false; }
+    }
+    if (done === false) {
+      enterSafariScrollMode();
+      return;
+    }
     if (done && done.then) {
       done.then(function () { afterFullscreen(); }).catch(function () {
-        if (!fullscreenNode()) fullscreenFallback();
+        if (!fullscreenNode()) enterSafariScrollMode();
       });
-    } else {
-      afterFullscreen();
-      setTimeout(function () {
-        if (!fullscreenNode() && !html.classList.contains("fs-fill") && !html.classList.contains("safari-scroll")) {
-          fullscreenFallback();
-        }
-      }, 80);
+      return;
     }
+    afterFullscreen();
+    setTimeout(function () {
+      if (!fullscreenNode() && !immersiveOn()) enterSafariScrollMode();
+    }, 300);
   }
-  let fsGestureAt = 0;
-  const fsBtn = document.getElementById("fsBtn");
-  fsBtn.addEventListener("touchend", function (e) {
-    fsGestureAt = performance.now();
-    e.stopPropagation();
-    toggleFullscreen();
-  }, { passive: true });
   fsBtn.addEventListener("click", function (e) {
     e.stopPropagation();
-    if (performance.now() - fsGestureAt < 800) return;
     toggleFullscreen();
   });
   document.addEventListener("fullscreenchange", afterFullscreen);
   document.addEventListener("webkitfullscreenchange", afterFullscreen);
+  document.addEventListener("fullscreenerror", function () {
+    if (!fullscreenNode()) enterSafariScrollMode();
+  });
+  document.addEventListener("webkitfullscreenerror", function () {
+    if (!fullscreenNode()) enterSafariScrollMode();
+  });
   if (window.visualViewport) {
     visualViewport.addEventListener("resize", function () {
       watchSafariBars();
+      if (document.documentElement.classList.contains("fs-fill")) {
+        document.documentElement.style.setProperty("--vv-h", Math.round(viewportHeight()) + "px");
+      }
       if (document.documentElement.classList.contains("fs-fill") || fullscreenNode()) resize();
     });
     visualViewport.addEventListener("scroll", watchSafariBars);
   }
   window.addEventListener("scroll", watchSafariBars, { passive: true });
+  paintFsButton();
   paintSound();
 
   window.__iskra = {
