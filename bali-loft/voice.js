@@ -827,20 +827,29 @@ async function toggleVideo() {
     paintCam();
     return;
   }
+  const phone = navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
+  const tries = phone
+    ? [
+        { video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 960 }, aspectRatio: { ideal: 0.75 } }, audio: false },
+        { video: { facingMode: "user" }, audio: false },
+      ]
+    : [
+        { video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
+        { video: true, audio: false },
+      ];
   let stream = null;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-      audio: false,
-    });
-  } catch {
+  for (const constraints of tries) {
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      break;
     } catch {
-      videoPhase = "denied";
-      paintCam();
-      return;
+      stream = null;
     }
+  }
+  if (!stream) {
+    videoPhase = "denied";
+    paintCam();
+    return;
   }
   camStream = stream;
   videoPhase = "live";
