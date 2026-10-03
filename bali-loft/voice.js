@@ -220,10 +220,41 @@ function send(obj) {
   mqttOk = n > 0;
 }
 
+function cloneTrack(track) {
+  if (!track) return null;
+  try {
+    const copy = track.clone();
+    copy.enabled = track.enabled;
+    return copy;
+  } catch {
+    return track;
+  }
+}
+function stopClone(track, original) {
+  if (!track || track === original) return;
+  try { track.stop(); } catch {}
+}
+function linkUp(L) {
+  if (!L) return false;
+  const pc = L.pc;
+  return pc.connectionState === "connected" || pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed";
+}
+async function armSender(L, kind, track) {
+  const tr = kind === "audio" ? audioTr(L.pc) : videoTr(L.pc);
+  if (!tr || !tr.sender) return;
+  const key = kind === "audio" ? "micClone" : "camClone";
+  const prev = L[key];
+  const next = track ? cloneTrack(track) : null;
+  L[key] = next;
+  if (prev && prev !== next) stopClone(prev, track);
+  try { await tr.sender.replaceTrack(next); } catch {}
+}
 function closeLink(id) {
   const L = links.get(id);
   if (!L) return;
   links.delete(id);
+  stopClone(L.micClone, micTrack());
+  stopClone(L.camClone, camTrack());
   try { L.pc.ontrack = null; L.pc.onicecandidate = null; L.pc.close(); } catch {}
   if (L.audio) {
     try { L.audio.pause(); L.audio.srcObject = null; L.audio.remove(); } catch {}
@@ -363,27 +394,11 @@ function flushIce(L, id) {
 }
 
 async function pushMic(track) {
-  let reopen = false;
-  for (const L of links.values()) {
-    const tr = audioTr(L.pc);
-    if (!tr || !tr.sender) continue;
-    const cur = tr.currentDirection;
-    try { await tr.sender.replaceTrack(track || null); } catch {}
-    if (track && cur && cur !== "sendrecv" && cur !== "sendonly") reopen = true;
-  }
-  if (reopen) for (const id of [...links.keys()]) closeLink(id);
+  for (const L of links.values()) await armSender(L, "audio", track);
 }
 
 async function pushCam(track) {
-  let reopen = false;
-  for (const L of links.values()) {
-    const tr = videoTr(L.pc);
-    if (!tr || !tr.sender) { reopen = !!track; continue; }
-    const cur = tr.currentDirection;
-    try { await tr.sender.replaceTrack(track || null); } catch {}
-    if (track && cur && cur !== "sendrecv" && cur !== "sendonly") reopen = true;
-  }
-  if (reopen) for (const id of [...links.keys()]) closeLink(id);
+  for (const L of links.values()) await armSender(L, "video", track);
   publishFeeds();
 }
 
@@ -401,10 +416,8 @@ async function offerTo(id) {
     const vr = videoTr(L.pc);
     if (tr) tr.direction = "sendrecv";
     if (vr) vr.direction = "sendrecv";
-    const track = micTrack();
-    if (tr && track) await tr.sender.replaceTrack(track);
-    const cam = camTrack();
-    if (vr && cam) await vr.sender.replaceTrack(cam);
+    await armSender(L, "audio", micTrack());
+    await armSender(L, "video", camTrack());
     const offer = await L.pc.createOffer();
     if (links.get(id) !== L) return;
     await L.pc.setLocalDescription(offer);
@@ -425,19 +438,19 @@ async function onOffer(msg) {
   if (L) closeLink(msg.from);
   L = makePC(msg.from);
   L.gen = msg.gen;
-  await L.pc.setRemoteDescription({ type: "offer", sdp: msg.sdp });
-  for (const tr of L.pc.getTransceivers()) tr.direction = "sendrecv";
-  const tr = audioTr(L.pc);
-  const vr = videoTr(L.pc);
-  const track = micTrack();
-  if (tr && track) await tr.sender.replaceTrack(track);
-  const cam = camTrack();
-  if (vr && cam) await vr.sender.replaceTrack(cam);
-  const answer = await L.pc.createAnswer();
-  if (links.get(msg.from) !== L) return;
-  await L.pc.setLocalDescription(answer);
-  flushIce(L, msg.from);
-  send({ t: "answer", from: myId, to: msg.from, gen: L.gen, sdp: L.pc.localDescription.sdp });
+  try {
+    await L.pc.setRemoteDescription({ type: "offer", sdp: msg.sdp });
+    for (const tr of L.pc.getTransceivers()) tr.direction = "sendrecv";
+    await armSender(L, "audio", micTrack());
+    await armSender(L, "video", camTrack());
+    const answer = await L.pc.createAnswer();
+    if (links.get(msg.from) !== L) return;
+    await L.pc.setLocalDescription(answer);
+    flushIce(L, msg.from);
+    send({ t: "answer", from: myId, to: msg.from, gen: L.gen, sdp: L.pc.localDescription.sdp });
+  } catch {
+    if (links.get(msg.from) === L) closeLink(msg.from);
+  }
 }
 
 async function onAnswer(msg) {
@@ -479,12 +492,7 @@ function onHi(msg) {
     mount: msg.mount === "horse" || msg.mount === "ski" ? msg.mount : "",
     at: Date.now(),
   };
-  if (myId > msg.id) {
-    const L = links.get(msg.id);
-    const stale = L && L.offered && Date.now() - L.offerAt > 20000 && L.pc.connectionState !== "connected" && L.pc.iceConnectionState !== "connected" && L.pc.iceConnectionState !== "completed";
-    if (stale) closeLink(msg.id);
-    offerTo(msg.id);
-  }
+  if (myId > msg.id) ensureLinks();
   paint();
 }
 
@@ -661,13 +669,39 @@ function publishPos() {
 
 setInterval(publishPos, 100);
 
+function ensureLinks() {
+  const now = Date.now();
+  for (const id of Object.keys(remotes)) {
+    if (!(myId > id)) continue;
+    const L = links.get(id);
+    if (L && L.making) continue;
+    if (L && linkUp(L)) continue;
+    if (L) {
+      const ice = L.pc.iceConnectionState;
+      const cs = L.pc.connectionState;
+      const age = now - (L.offerAt || 0);
+      if ((ice === "checking" || cs === "connecting") && age < 25000) continue;
+      const dead = ice === "failed" || ice === "disconnected" || ice === "closed" || cs === "failed" || cs === "disconnected" || cs === "closed";
+      if (L.offered && age < 8000 && !dead) continue;
+      closeLink(id);
+    }
+    offerTo(id);
+  }
+}
+
 setInterval(() => {
   publishHi();
   const now = Date.now();
   for (const id of Object.keys(remotes)) {
     if (now - remotes[id].at > 12000) dropPeer(id);
   }
-  for (const [id, L] of links) if (L.audio) L.audio.volume = volumeFor(id);
+  const mic = micTrack();
+  for (const [id, L] of links) {
+    if (L.audio) L.audio.volume = volumeFor(id);
+    if (L.micClone && mic) L.micClone.enabled = mic.enabled && phase === "live";
+    if (L.camClone && camTrack()) L.camClone.enabled = camTrack().enabled && videoPhase === "live";
+  }
+  ensureLinks();
   publishFeeds();
   kickAudio();
 }, 800);
@@ -696,10 +730,30 @@ async function start() {
     return;
   }
   phase = "live";
+  holdLocal(localStream);
   await pushMic(micTrack());
   kickAudio();
   publishHi();
+  ensureLinks();
   paint();
+}
+
+let localAudioEl = null;
+function holdLocal(stream) {
+  if (!localAudioEl) {
+    localAudioEl = document.createElement("audio");
+    localAudioEl.muted = true;
+    localAudioEl.autoplay = true;
+    localAudioEl.playsInline = true;
+    localAudioEl.setAttribute("playsinline", "");
+    localAudioEl.setAttribute("webkit-playsinline", "");
+    localAudioEl.style.cssText = "position:absolute;left:0;top:0;width:8px;height:8px;opacity:0.02;pointer-events:none";
+    document.body.appendChild(localAudioEl);
+  }
+  localAudioEl.srcObject = stream || null;
+  if (!stream) return;
+  const p = localAudioEl.play();
+  if (p && p.catch) p.catch(() => {});
 }
 
 function toggle() {
@@ -710,6 +764,7 @@ function toggle() {
   if (!track) { phase = "off"; start(); return; }
   if (phase === "live") { track.enabled = false; phase = "muted"; }
   else { track.enabled = true; phase = "live"; }
+  for (const L of links.values()) if (L.micClone) L.micClone.enabled = track.enabled && phase === "live";
   publishHi();
   paint();
 }
@@ -720,6 +775,7 @@ function hangup() {
     for (const t of localStream.getTracks()) { try { t.stop(); } catch {} }
   }
   localStream = null;
+  holdLocal(null);
   pushMic(null);
   if (track) phase = "off";
   phase = "off";
@@ -894,7 +950,9 @@ window.__spaceVoice = {
         ice: L.pc.iceConnectionState,
         sig: L.pc.signalingState,
         audio: !!L.audio,
+        send: L.micClone ? L.micClone.id : "",
       })),
+      mic: micTrack() ? micTrack().id : "",
     };
   },
 };
