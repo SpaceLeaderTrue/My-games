@@ -811,8 +811,62 @@ setInterval(() => {
   }
 }, 20000);
 
+function attachLocalCam(stream) {
+  camStream = stream;
+  videoPhase = "live";
+  if (!localVid) {
+    localVid = document.createElement("video");
+    localVid.autoplay = true;
+    localVid.muted = true;
+    localVid.playsInline = true;
+    localVid.setAttribute("playsinline", "");
+    localVid.setAttribute("webkit-playsinline", "");
+    localVid.style.cssText = "position:absolute;left:0;top:0;width:160px;height:120px;opacity:0.02;pointer-events:none";
+    document.body.appendChild(localVid);
+  }
+  localVid.srcObject = camStream;
+  localVid.dataset.who = myName;
+  localVid.dataset.pid = myId;
+  const play = localVid.play();
+  if (play && play.catch) play.catch(() => {});
+  window.__localCam = localVid;
+}
+let voyageAdopted = false;
+function useVoyage(stream) {
+  if (voyageAdopted || !stream) return;
+  const audios = stream.getAudioTracks ? stream.getAudioTracks() : [];
+  const videos = stream.getVideoTracks ? stream.getVideoTracks() : [];
+  if (!audios.length && !videos.length) return;
+  voyageAdopted = true;
+  if (audios.length && (phase === "off" || phase === "denied" || phase === "joining")) {
+    localStream = new MediaStream(audios);
+    phase = "live";
+    holdLocal(localStream);
+    pushMic(micTrack());
+    publishHi();
+    ensureLinks();
+    paint();
+  }
+  if (videos.length && videoPhase !== "live") {
+    attachLocalCam(new MediaStream(videos));
+    pushCam(camTrack());
+    publishFeeds();
+    paintCam();
+  }
+  kickAudio();
+}
 async function start() {
   if (phase === "joining" || phase === "live" || phase === "muted") return;
+  if (window.__voyagePending && !voyageAdopted) {
+    phase = "joining";
+    paint();
+    try {
+      const stream = await window.__voyagePending;
+      if (stream) useVoyage(stream);
+      if (phase === "live") return;
+    } catch {}
+    if (phase === "joining") phase = "off";
+  }
   kickAudio();
   phase = "joining";
   paint();
@@ -1008,23 +1062,7 @@ async function toggleVideo() {
     paintCam();
     return;
   }
-  camStream = stream;
-  videoPhase = "live";
-  if (!localVid) {
-    localVid = document.createElement("video");
-    localVid.autoplay = true;
-    localVid.muted = true;
-    localVid.playsInline = true;
-    localVid.setAttribute("playsinline", "");
-    localVid.setAttribute("webkit-playsinline", "");
-    localVid.style.cssText = "position:absolute;left:0;top:0;width:160px;height:120px;opacity:0.02;pointer-events:none";
-    document.body.appendChild(localVid);
-  }
-  localVid.srcObject = camStream;
-  localVid.dataset.who = myName;
-  const play = localVid.play();
-  if (play && play.catch) play.catch(() => {});
-  window.__localCam = localVid;
+  attachLocalCam(stream);
   await pushCam(camTrack());
   publishFeeds();
   paintCam();
@@ -1034,6 +1072,7 @@ window.__spaceVoice = {
   toggle,
   toggleVideo,
   hangup,
+  useVoyage,
   debug() {
     return {
       phase,
@@ -1060,3 +1099,5 @@ window.__spaceVoice = {
     };
   },
 };
+if (window.__voyageStream) useVoyage(window.__voyageStream);
+else if (window.__voyagePending) Promise.resolve(window.__voyagePending).then((s) => s && useVoyage(s)).catch(() => {});
