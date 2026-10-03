@@ -361,16 +361,31 @@ function videoTr(pc) {
   return pc.getTransceivers().find((t) => t.receiver && t.receiver.track && t.receiver.track.kind === "video") || null;
 }
 
+function publishRoster() {
+  const list = [];
+  for (const id of Object.keys(remotes)) {
+    const p = remotes[id];
+    if (!p || !p.name) continue;
+    list.push({ id, name: p.name, color: p.color || "#3d8fd4" });
+  }
+  if (myName) list.push({ id: myId, name: myName, color: myColor });
+  window.__screenPeople = list;
+}
 function publishFeeds() {
   const list = [];
   for (const [id, L] of links) {
     if (!L.video) continue;
+    L.video.dataset.pid = id;
     L.video.dataset.who = (remotes[id] && remotes[id].name) || L.video.dataset.who || "";
     list.push(L.video);
   }
   window.__camFeeds = list;
   window.__localCam = videoPhase === "live" && localVid ? localVid : null;
-  if (localVid) localVid.dataset.who = myName;
+  if (localVid) {
+    localVid.dataset.who = myName;
+    localVid.dataset.pid = myId;
+  }
+  publishRoster();
 }
 
 function attachVideo(id, track) {
@@ -386,6 +401,7 @@ function attachVideo(id, track) {
     el.style.cssText = "position:absolute;left:0;top:0;width:160px;height:120px;opacity:0.02;pointer-events:none";
     document.body.appendChild(el);
     L.video = el;
+    el.dataset.pid = id;
   }
   const stream = new MediaStream([track]);
   if (L.video.srcObject !== stream) L.video.srcObject = stream;
@@ -570,6 +586,7 @@ function onHi(msg) {
     at: Date.now(),
   };
   if (myId > msg.id) ensureLinks();
+  publishRoster();
   paint();
 }
 
@@ -711,6 +728,7 @@ function onPos(msg) {
     mount: msg.mount === "horse" || msg.mount === "ski" ? msg.mount : (prev && prev.mount) || "",
     at: Date.now(),
   };
+  publishRoster();
 }
 
 function publishHi() {
@@ -879,7 +897,10 @@ function commitName() {
   const next = typed || fallbackName();
   if (next === myName) return;
   myName = next;
-  if (localVid) localVid.dataset.who = myName;
+  if (localVid) {
+    localVid.dataset.who = myName;
+    localVid.dataset.pid = myId;
+  }
   publishFeeds();
   publishHi();
 }
@@ -941,6 +962,7 @@ window.addEventListener("pagehide", () => send({ t: "bye", id: myId }));
 connectMQTT();
 bindName();
 paint();
+publishRoster();
 
 function paintCam() {
   const b = document.getElementById("btn-cam");
