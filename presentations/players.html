@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>SPACE — приплывай</title>
+<style>
+  @page { size: 13.333in 7.5in; margin: 0; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; padding: 0; background: #081018; color: #eef3f8; font-family: Inter, sans-serif; }
+  .slide {
+    width: 13.333in; height: 7.5in; position: relative; overflow: hidden;
+    padding: 0.55in 0.68in 0.48in; page-break-after: always;
+    background:
+      radial-gradient(900px 520px at 100% 0%, rgba(224,161,90,.2), transparent 55%),
+      radial-gradient(700px 400px at 0% 100%, rgba(90,160,190,.12), transparent 60%),
+      #081018;
+  }
+  .slide:last-child { page-break-after: auto; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .mark { font-style: italic; font-weight: 700; letter-spacing: .22em; font-size: 26px; }
+  h1 { font-size: 64px; line-height: .96; font-weight: 650; letter-spacing: -.04em; margin: .28in 0 0; }
+  .lead { font-size: 24px; line-height: 1.35; color: rgba(238,243,248,.8); max-width: 8.6in; margin: .2in 0 0; }
+  .row { display: flex; gap: .28in; margin-top: .32in; }
+  .shot { border-radius: 20px; object-fit: cover; border: 1px solid rgba(238,243,248,.14); }
+  .big { width: 6.3in; height: 4.35in; }
+  .tile { width: 2.85in; height: 2.15in; }
+  .cap { margin: .08in 0 0; font-size: 14px; color: rgba(238,243,248,.62); }
+  .steps { margin: .34in 0 0; padding: 0; list-style: none; }
+  .steps li { font-size: 26px; line-height: 1.25; padding: .08in 0 .08in 0; }
+  .num { color: #e0a15a; font-style: italic; font-weight: 700; margin-right: .16in; }
+  .places { display: flex; flex-wrap: wrap; gap: .12in .22in; margin-top: .28in; }
+  .places span { font-size: 22px; border-bottom: 2px solid #e0a15a; padding-bottom: 2px; }
+  .foot { position: absolute; left: .68in; right: .68in; bottom: .28in; color: rgba(238,243,248,.42); font-size: 13px; display: flex; justify-content: space-between; }
+  .cover {
+    background:
+      linear-gradient(90deg, rgba(8,16,24,.2), rgba(8,16,24,.55)),
+      url("/opt/cursor/artifacts/space-dock-sign.png") center 40% / cover no-repeat,
+      #081018;
+  }
+  .cover h1 { font-size: 78px; text-shadow: 0 10px 40px #000; }
+  .cover .lead { text-shadow: 0 8px 24px #000; }
+</style>
+</head>
+<body>
+
+<section class="slide cover">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <h1>Приплывай.</h1>
+  <p class="lead">Остров, пристань и те, кто открыл ту же ссылку. Ты сходишь на берег сам.</p>
+  <div class="foot"><span>логотип на пристани — наш</span><span></span></div>
+</section>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <div class="row">
+    <div>
+      <h1 style="font-size:52px;margin-top:0">Корабль довозит.<br>Дальше — твои ноги.</h1>
+      <p class="lead">Напиши имя. Нажми «Нажмите, чтобы начать». Корабль подойдёт к пристани. На ней знак SPACE. В виллу, на мост и к воде ты выходишь сам.</p>
+    </div>
+    <div>
+      <img class="shot big" alt="Корабль у острова" src="/opt/cursor/artifacts/boat-side.png">
+    </div>
+  </div>
+  <div class="foot"><span></span><span>02</span></div>
+</section>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <h1 style="font-size:52px">Тебя видно, даже если камера ещё молчит.</h1>
+  <p class="lead">Имя стоит над фигурой и на карте, как только ты вошёл. Микрофон включает голос. Камера ставит лицо на стену. Пока камера выключена, на экране уже горит твоя буква.</p>
+  <div class="row">
+    <div><img class="shot tile" alt="Имена на экранах" src="/opt/cursor/artifacts/screen_names.png"><p class="cap">имя, пока нет картинки</p></div>
+    <div><img class="shot tile" alt="Фигура другого человека" src="/opt/cursor/artifacts/voice-avatar.png"><p class="cap">фигура на острове</p></div>
+    <div><img class="shot tile" alt="Экран с человеком" src="/opt/cursor/artifacts/screen-fill.png"><p class="cap">лицо, когда камера включена</p></div>
+  </div>
+  <div class="foot"><span></span><span>03</span></div>
+</section>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <h1 style="font-size:48px">Куда пойти, когда вы уже там.</h1>
+  <div class="places">
+    <span>кони</span><span>корт</span><span>летнее кино</span><span>птицы</span><span>гидроцикл</span><span>крыша</span><span>бункер</span>
+  </div>
+  <div class="row">
+    <img class="shot tile" alt="Кони" src="/opt/cursor/artifacts/horses.png">
+    <img class="shot tile" alt="Теннис" src="/opt/cursor/artifacts/tennis.png">
+    <img class="shot tile" alt="Кино" src="/opt/cursor/artifacts/cinema-beam.png">
+    <img class="shot tile" alt="Птицы" src="/opt/cursor/artifacts/birds-close.png">
+  </div>
+  <div class="foot"><span>Птицы громче, когда подходишь. Мотор — только когда едешь.</span><span>04</span></div>
+</section>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <div class="row">
+    <div>
+      <h1 style="font-size:46px;margin-top:.05in">Твой экран такой, как ты держишь телефон.</h1>
+      <p class="lead">Вертикально — высокий кадр, и таким его видят все на острове. Горизонтально или с компьютера — широкий. Повернёшь телефон, экран повернётся у остальных.</p>
+    </div>
+    <img class="shot big" alt="Вертикальные и широкие экраны" src="/opt/cursor/artifacts/person-orientation-screens.png">
+  </div>
+  <div class="foot"><span>Один человек — один экран</span><span>05</span></div>
+</section>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <h1 style="font-size:50px">Как зайти за минуту.</h1>
+  <ol class="steps">
+    <li><span class="num">1</span>Открой ссылку на телефоне или компьютере</li>
+    <li><span class="num">2</span>Напиши, как тебя звать</li>
+    <li><span class="num">3</span>Нажми «Нажмите, чтобы начать»</li>
+    <li><span class="num">4</span>Разреши микрофон и камеру, если хочешь, чтобы тебя слышали и видели</li>
+  </ol>
+  <p class="lead">Без них тоже можно войти: других ты уже видишь. Кнопки микрофона и камеры остаются внизу экрана.</p>
+  <div class="foot"><span></span><span>06</span></div>
+</section>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <h1>Позови своих<br>в ту же ссылку.</h1>
+  <p class="lead" style="font-size:32px;color:#eef3f8">mire-lupin-7dinx.ship.place</p>
+  <p class="lead">Без пароля. Если открыта старая вкладка, закрой её и обнови страницу жёстко. Ссылка жива до 4 ноября 2026, 20:45 по Москве.</p>
+  <p class="lead">На пристани вас встречает SPACE.</p>
+  <div class="foot"><span>SPACE</span><span></span></div>
+</section>
+
+</body>
+</html>

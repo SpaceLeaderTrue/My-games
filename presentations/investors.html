@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>SPACE — для тех, кто входит в место</title>
+<style>
+  @page { size: 13.333in 7.5in; margin: 0; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; padding: 0; background: #081018; color: #eef3f8; font-family: Inter, sans-serif; }
+  .slide {
+    width: 13.333in; height: 7.5in; position: relative; overflow: hidden;
+    padding: 0.58in 0.7in 0.5in; page-break-after: always;
+    background:
+      radial-gradient(820px 420px at 0% 0%, rgba(224,161,90,.18), transparent 62%),
+      #081018;
+  }
+  .slide:last-child { page-break-after: auto; }
+  .top { display: flex; justify-content: space-between; align-items: center; }
+  .mark { font-style: italic; font-weight: 700; letter-spacing: .22em; font-size: 22px; }
+  .kicker { color: #e0a15a; letter-spacing: .18em; text-transform: uppercase; font-size: 13px; font-weight: 650; margin: 0.42in 0 0; }
+  h1 { font-size: 58px; line-height: .98; font-weight: 650; letter-spacing: -.035em; margin: .12in 0 0; max-width: 10.6in; }
+  .lead { font-size: 22px; line-height: 1.35; color: rgba(238,243,248,.78); max-width: 9.2in; margin: .22in 0 0; }
+  .cols { display: flex; gap: .4in; margin-top: .38in; }
+  .col { flex: 1; }
+  ul { margin: .2in 0 0; padding: 0; list-style: none; }
+  li { font-size: 20px; line-height: 1.35; padding: .1in 0 .1in .22in; position: relative; }
+  li:before { content: ""; position: absolute; left: 0; top: .28in; width: 8px; height: 8px; border-radius: 50%; background: #e0a15a; }
+  .photo { width: 5.15in; height: 4.55in; object-fit: cover; border-radius: 22px; border: 1px solid rgba(238,243,248,.14); }
+  .wide { width: 100%; height: 3.15in; object-fit: cover; border-radius: 18px; margin-top: .28in; border: 1px solid rgba(238,243,248,.12); }
+  .card { background: rgba(238,243,248,.04); border: 1px solid rgba(238,243,248,.1); border-radius: 18px; padding: .22in .24in .2in; }
+  .card b { display: block; font-size: 18px; margin-bottom: .06in; }
+  .card span { display: block; color: rgba(238,243,248,.72); font-size: 15px; line-height: 1.35; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: .18in; margin-top: .32in; }
+  .foot { position: absolute; left: .7in; right: .7in; bottom: .32in; display: flex; justify-content: space-between; color: rgba(238,243,248,.45); font-size: 13px; letter-spacing: .04em; }
+  .url { font-size: 28px; font-weight: 650; letter-spacing: -.02em; margin-top: .2in; }
+  .quiet { color: rgba(238,243,248,.62); font-size: 18px; line-height: 1.4; }
+</style>
+</head>
+<body>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div><div class="quiet">первый остров</div></div>
+  <div class="kicker">общее место, не созвон</div>
+  <h1>Сюда заходят вместе.<br>И остаются внутри.</h1>
+  <p class="lead">Трёхмерный остров по одной ссылке. Корабль подходит к пристани, люди выходят сами, видят друг друга и слышат. Телефон и компьютер стоят в одном мире.</p>
+  <div class="foot"><span>Логотип тот же, что на пристани</span><span>01</span></div>
+</section>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <div class="kicker">в чём выгода</div>
+  <h1>Окно звонка закрывается.<br>Место остаётся.</h1>
+  <p class="lead">Сетка лиц живёт, пока длится разговор. Остров живёт дольше: по нему расходятся, к нему возвращаются, на нём назначают встречу без новой комнаты и новой ссылки.</p>
+  <div class="grid">
+    <div class="card"><b>Удержание</b><span>Человек приходит не «на созвон на 40 минут», а в место, где уже стоят другие.</span></div>
+    <div class="card"><b>Один вход</b><span>Ссылка, имя, корабль. Без установки и без отдельного клиента.</span></div>
+    <div class="card"><b>Слой уже стоит</b><span>Голос, видео, имена, карта и физика острова собраны. Новый берег садится на них.</span></div>
+    <div class="card"><b>Живой вход</b><span>Продукт можно открыть сегодня с телефона. Это не макет.</span></div>
+  </div>
+  <div class="foot"><span></span><span>02</span></div>
+</section>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <div class="cols">
+    <div class="col">
+      <div class="kicker">что уже можно войти и проверить</div>
+      <h1 style="font-size:46px">Пристань встречает знаком.</h1>
+      <ul>
+        <li>Корабль доходит до берега, на пирс выходят сами</li>
+        <li>Имя видно над фигурой и на карте</li>
+        <li>Голос тех, кто включил микрофон</li>
+        <li>Лицо на стенах виллы, кинотеатра и бункера</li>
+        <li>Один человек занимает один экран</li>
+      </ul>
+    </div>
+    <div class="col"><img class="photo" alt="Знак SPACE на пристани" src="/opt/cursor/artifacts/space-dock-sign.png"></div>
+  </div>
+  <div class="foot"><span>Кадр из самого острова</span><span>03</span></div>
+</section>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <div class="kicker">сценарии, которые уже играются</div>
+  <h1 style="font-size:44px">Люди расходятся и снова сходятся.</h1>
+  <div class="grid">
+    <div class="card"><b>Прибытие</b><span>Несколько человек открывают одну ссылку и сходят с корабля на одну пристань.</span></div>
+    <div class="card"><b>Прогулка</b><span>Фигуры и карта обновляются, даже если камера ещё выключена.</span></div>
+    <div class="card"><b>Кони и корт</b><span>Один садится на коня, другой бьёт по мячу. Оба видны остальным.</span></div>
+    <div class="card"><b>Вода</b><span>Гидроцикл обходит остров. Мотор слышен, пока на нём едут.</span></div>
+    <div class="card"><b>Кино и крыша</b><span>Летний экран и бар наверху. Музыка крыши громче, когда поднимаешься.</span></div>
+    <div class="card"><b>Бункер</b><span>Спуск за виллой. Те же лица на экранах внизу.</span></div>
+  </div>
+  <div class="foot"><span></span><span>04</span></div>
+</section>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <div class="kicker">то, что обычно ломается и здесь уже держится</div>
+  <h1 style="font-size:42px">Телефон, Россия и чужой экран.</h1>
+  <div class="grid">
+    <div class="card"><b>iPhone слышит</b><span>Звук мира идёт через обычный плеер. Из-за этого телефон не остаётся немым.</span></div>
+    <div class="card"><b>Без VPN</b><span>Ссылка открывается из России. Это условие входа, не сноска.</span></div>
+    <div class="card"><b>Экран человека</b><span>Вертикальный телефон даёт высокий экран у всех. Компьютер и горизонтальный телефон остаются широкими.</span></div>
+    <div class="card"><b>Дистанция</b><span>Птицы, крыша и гидроцикл тише издалека. Микрофоны людей к этому правилу не привязаны.</span></div>
+  </div>
+  <div class="foot"><span></span><span>05</span></div>
+</section>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <div class="kicker">как растёт, не начиная заново</div>
+  <h1>Следующий берег дешевле первого.</h1>
+  <p class="lead">Дорогая часть уже стоит: чтобы люди появились в одном мире, назвались, услышали друг друга и увидели лица на стенах. Новый остров — это земля, маршрут и сценарии. Те же люди переходят туда со своим именем.</p>
+  <div class="grid">
+    <div class="card"><b>Сейчас</b><span>Один обитаемый остров: вилла, вода, птицы, кино, кони, бункер.</span></div>
+    <div class="card"><b>Дальше</b><span>Новые земли на том же присутствии. Вода и мосты как переходы, не как новый продукт.</span></div>
+  </div>
+  <div class="foot"><span></span><span>06</span></div>
+</section>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <div class="kicker">честная стадия</div>
+  <h1>Картинка проще, чем место.</h1>
+  <p class="lead">Мир собирался так, чтобы в нём уже можно было находиться вместе. Поэтому геометрия проще, чем будет. Претензии к «низкому качеству кадра» здесь не прячутся: скорость была ценой того, что остров заселён. Детали и сценарии теперь наращиваются поверх живой ссылки, а не вместо неё.</p>
+  <p class="lead">Выручки и числа пользователей в этой презентации нет. Их нельзя показывать, пока их нет.</p>
+  <div class="foot"><span></span><span>07</span></div>
+</section>
+
+<section class="slide">
+  <div class="top"><div class="mark">SPACE</div></div>
+  <div class="kicker">войти сегодня</div>
+  <h1>Одна ссылка.<br>Без пароля.</h1>
+  <div class="url">mire-lupin-7dinx.ship.place</div>
+  <p class="lead">Открыть с телефона и с компьютера. Жёсткое обновление, если была старая вкладка. Ссылка жива до 4 ноября 2026, 20:45 по Москве.</p>
+  <p class="quiet" style="margin-top:.35in">Логотип SPACE — тот, что на одежде и теперь на пристани острова.</p>
+  <div class="foot"><span>SPACE</span><span>08</span></div>
+</section>
+
+</body>
+</html>
