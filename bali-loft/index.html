@@ -4216,9 +4216,10 @@ function facePlace(v, cw, ch) {
   const vw = v.videoWidth || v.naturalWidth || v.width, vh = v.videoHeight || v.naturalHeight || v.height, f = faceGlide(v, faceSpot(v));
   const cover = Math.max(cw / vw, ch / vh);
   const faceH = Math.max(8, f.h * vh);
-  const above = faceH * 0.95, below = faceH * 0.7;
-  const headTop = f.y * vh - above;
-  let zoom = Math.max(cover, (ch * 0.74) / (above + below));
+  const headTop = f.y * vh - faceH * 0.55;
+  const chin = f.y * vh + faceH * 0.46;
+  const eyes = f.y * vh - faceH * 0.16;
+  let zoom = Math.max(cover, (ch * 0.8) / (faceH * 1.15));
   if (zoom > cover * 3.2) zoom = cover * 3.2;
   let sw = cw / zoom, sh = ch / zoom;
   if (sw > vw || sh > vh) {
@@ -4226,6 +4227,8 @@ function facePlace(v, cw, ch) {
     sw *= fit; sh *= fit;
   }
   let sx = f.x * vw - sw * 0.5, sy = headTop - sh * 0.06;
+  if (chin > sy + sh * 0.72) sy = chin - sh * 0.72;
+  if (eyes < sy + sh * 0.1) sy = eyes - sh * 0.14;
   if (sx < 0) sx = 0;
   if (sy < 0) sy = 0;
   if (sx > vw - sw) sx = Math.max(0, vw - sw);
