@@ -235,6 +235,38 @@ function stopClone(track, original) {
   if (track._stopDraw) track._stopDraw();
   try { track.stop(); } catch {}
 }
+function faceSpot(v) {
+  const now = performance.now(), box = v._face;
+  if (box && now - box.t < 480) return box;
+  let x = 0.5, y = 0.42;
+  try {
+    const c = faceSpot.c || (faceSpot.c = Object.assign(document.createElement("canvas"), { width: 40, height: 54 }));
+    const g = c.getContext("2d", { willReadFrequently: true });
+    g.drawImage(v, 0, 0, 40, 54);
+    const d = g.getImageData(0, 0, 40, 54).data;
+    let n = 0, sx = 0, sy = 0;
+    for (let row = 0; row < 42; row++) for (let col = 3; col < 37; col++) {
+      const i = (row * 40 + col) * 4, r = d[i], gc = d[i + 1], b = d[i + 2];
+      const cb = 128 - 0.169 * r - 0.331 * gc + 0.5 * b, cr = 128 + 0.5 * r - 0.419 * gc - 0.081 * b;
+      if (cb > 85 && cb < 135 && cr > 135 && cr < 180 && r > 60) n++, sx += col, sy += row;
+    }
+    if (n > 28) {
+      x = Math.min(0.72, Math.max(0.28, sx / n / 40));
+      y = Math.min(0.62, Math.max(0.2, sy / n / 54));
+    }
+  } catch {}
+  if (box) x = box.x + (x - box.x) * 0.45, y = box.y + (y - box.y) * 0.45;
+  return v._face = { x, y, t: now };
+}
+function facePlace(v, cw, ch) {
+  const vw = v.videoWidth, vh = v.videoHeight, sc = Math.max(cw / vw, ch / vh), dw = vw * sc, dh = vh * sc, f = faceSpot(v);
+  let dx = cw * 0.5 - f.x * dw, dy = ch * 0.38 - f.y * dh;
+  if (dx > 0) dx = 0;
+  if (dx < cw - dw) dx = cw - dw;
+  if (dy > 0) dy = 0;
+  if (dy < ch - dh) dy = ch - dh;
+  return { dx, dy, dw, dh };
+}
 async function forkVideo(track) {
   const vid = localVid;
   if (!track || !vid) return cloneTrack(track);
@@ -256,15 +288,13 @@ async function forkVideo(track) {
   const draw = () => {
     const src = localVid;
     if (!src || src.readyState < 2 || !src.videoWidth || videoPhase !== "live") return;
-    const vw = src.videoWidth, vh = src.videoHeight;
-    const sc = Math.max(canvas.width / vw, canvas.height / vh);
-    const dw = vw * sc, dh = vh * sc;
+    const fp = facePlace(src, canvas.width, canvas.height);
     ctx.fillStyle = "#0c1218";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.save();
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
-    try { ctx.drawImage(src, (canvas.width - dw) / 2, (canvas.height - dh) * 0.22, dw, dh); } catch {}
+    try { ctx.drawImage(src, fp.dx, fp.dy, fp.dw, fp.dh); } catch {}
     ctx.restore();
   };
   draw();
