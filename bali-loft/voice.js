@@ -238,34 +238,102 @@ function stopClone(track, original) {
 function faceSpot(v) {
   const now = performance.now(), box = v._face;
   if (box && now - box.t < 480) return box;
-  let x = 0.5, y = 0.42;
+  let x = 0.5, y = 0.4, w = 0.72, h = 0.8, found = false;
   try {
-    const c = faceSpot.c || (faceSpot.c = Object.assign(document.createElement("canvas"), { width: 40, height: 54 }));
+    const vw = v.videoWidth || v.naturalWidth, vh = v.videoHeight || v.naturalHeight;
+    let W, H;
+    if (vw >= vh) { W = 64; H = Math.max(18, Math.round(64 * vh / vw)); }
+    else { H = 64; W = Math.max(18, Math.round(64 * vw / vh)); }
+    const c = faceSpot.c || (faceSpot.c = document.createElement("canvas"));
+    if (c.width !== W) c.width = W;
+    if (c.height !== H) c.height = H;
     const g = c.getContext("2d", { willReadFrequently: true });
-    g.drawImage(v, 0, 0, 40, 54);
-    const d = g.getImageData(0, 0, 40, 54).data;
-    let n = 0, sx = 0, sy = 0;
-    for (let row = 0; row < 42; row++) for (let col = 3; col < 37; col++) {
-      const i = (row * 40 + col) * 4, r = d[i], gc = d[i + 1], b = d[i + 2];
+    g.drawImage(v, 0, 0, W, H);
+    const d = g.getImageData(0, 0, W, H).data, skin = new Uint8Array(W * H);
+    for (let p = 0, i = 0; p < skin.length; p++, i += 4) {
+      const r = d[i], gc = d[i + 1], b = d[i + 2];
       const cb = 128 - 0.169 * r - 0.331 * gc + 0.5 * b, cr = 128 + 0.5 * r - 0.419 * gc - 0.081 * b;
-      if (cb > 85 && cb < 135 && cr > 135 && cr < 180 && r > 60) n++, sx += col, sy += row;
+      if (cr > 138 && cr < 190 && cb > 70 && cb < 128 && cr - cb > 32 && r > 65 && r - gc > 18 && r - b > 25) skin[p] = 1;
     }
-    if (n > 28) {
-      x = Math.min(0.72, Math.max(0.28, sx / n / 40));
-      y = Math.min(0.62, Math.max(0.2, sy / n / 54));
+    const stride = W + 1, I = new Int32Array(stride * (H + 1));
+    for (let y0 = 0; y0 < H; y0++) {
+      let row = 0;
+      for (let x0 = 0; x0 < W; x0++) {
+        row += skin[y0 * W + x0];
+        I[(y0 + 1) * stride + x0 + 1] = I[y0 * stride + x0 + 1] + row;
+      }
     }
-  } catch {}
-  if (box) x = box.x + (x - box.x) * 0.45, y = box.y + (y - box.y) * 0.45;
-  return v._face = { x, y, t: now };
+    const area = (x0, y0, fw, fh) => I[(y0 + fh) * stride + x0 + fw] - I[y0 * stride + x0 + fw] - I[(y0 + fh) * stride + x0] + I[y0 * stride + x0];
+    const fracs = [0.12, 0.2, 0.28, 0.38, 0.5, 0.66];
+    let pick = null, densest = null;
+    for (let fi = 0; fi < fracs.length; fi++) {
+      const f = fracs[fi];
+      let fw = Math.round(W * f), fh = Math.round(H * Math.min(0.95, f * 1.2));
+      if (fw < 6) fw = 6;
+      if (fh < 6) fh = 6;
+      if (fw > W) fw = W;
+      if (fh > H) fh = H;
+      let best = 0, bx = 0, by = 0;
+      for (let y0 = 0; y0 + fh <= H; y0 += 2) for (let x0 = 0; x0 + fw <= W; x0 += 2) {
+        const dens = area(x0, y0, fw, fh) / (fw * fh);
+        if (dens > best) best = dens, bx = x0, by = y0;
+      }
+      if (!densest || best > densest.best) densest = { fw, fh, best, bx, by };
+      if (best >= 0.72) pick = { fw, fh, best, bx, by };
+    }
+    if (!pick && densest && densest.best >= 0.4) pick = densest;
+    if (pick) {
+      const x0 = pick.bx, y0 = pick.by, fw = pick.fw, fh = pick.fh;
+      let c0 = fw, c1 = -1, r0 = fh, r1 = -1;
+      for (let yy = 0; yy < fh; yy++) {
+        let rowN = 0;
+        for (let xx = 0; xx < fw; xx++) if (skin[(y0 + yy) * W + x0 + xx]) rowN++;
+        if (rowN / fw > 0.28) { if (yy < r0) r0 = yy; if (yy > r1) r1 = yy; }
+      }
+      for (let xx = 0; xx < fw; xx++) {
+        let colN = 0;
+        for (let yy = 0; yy < fh; yy++) if (skin[(y0 + yy) * W + x0 + xx]) colN++;
+        if (colN / fh > 0.25) { if (xx < c0) c0 = xx; if (xx > c1) c1 = xx; }
+      }
+      if (r1 > r0 + 1 && c1 > c0 + 1) {
+        x = (x0 + (c0 + c1) / 2) / W;
+        y = (y0 + (r0 + r1) / 2) / H;
+        w = Math.min(0.92, Math.max(0.16, (c1 - c0 + 1) / W * 1.45));
+        h = Math.min(0.96, Math.max(0.22, (r1 - r0 + 1) / H * 1.4));
+        if (fw / W > 0.48 || fh / H > 0.48) w = Math.max(w, 0.62), h = Math.max(h, 0.7);
+        found = true;
+      }
+    }
+  } catch (e) {}
+  if (!found) {
+    if (box && box.ok && now - box.t < 1600) return box;
+    x = 0.5; y = 0.4; w = 0.72; h = 0.8;
+  }
+  if (box) {
+    x = box.x + (x - box.x) * 0.45;
+    y = box.y + (y - box.y) * 0.45;
+    w = box.w + (w - box.w) * 0.4;
+    h = box.h + (h - box.h) * 0.4;
+  }
+  return v._face = { x, y, w, h, t: now, ok: found };
 }
 function facePlace(v, cw, ch) {
-  const vw = v.videoWidth, vh = v.videoHeight, sc = Math.max(cw / vw, ch / vh), dw = vw * sc, dh = vh * sc, f = faceSpot(v);
-  let dx = cw * 0.5 - f.x * dw, dy = ch * 0.38 - f.y * dh;
-  if (dx > 0) dx = 0;
-  if (dx < cw - dw) dx = cw - dw;
-  if (dy > 0) dy = 0;
-  if (dy < ch - dh) dy = ch - dh;
-  return { dx, dy, dw, dh };
+  const vw = v.videoWidth || v.naturalWidth, vh = v.videoHeight || v.naturalHeight, f = faceSpot(v);
+  const cover = Math.max(cw / vw, ch / vh);
+  const faceW = Math.max(8, f.w * vw), faceH = Math.max(8, f.h * vh);
+  let zoom = Math.max(cover, (ch * 0.88) / faceH, (cw * 0.52) / faceW);
+  if (zoom > cover * 4) zoom = cover * 4;
+  let sw = cw / zoom, sh = ch / zoom;
+  if (sw > vw || sh > vh) {
+    const fit = Math.min(vw / sw, vh / sh);
+    sw *= fit; sh *= fit;
+  }
+  let sx = f.x * vw - sw * 0.5, sy = f.y * vh - sh * 0.36;
+  if (sx < 0) sx = 0;
+  if (sy < 0) sy = 0;
+  if (sx > vw - sw) sx = Math.max(0, vw - sw);
+  if (sy > vh - sh) sy = Math.max(0, vh - sh);
+  return { sx, sy, sw, sh };
 }
 async function forkVideo(track) {
   const vid = localVid;
@@ -294,7 +362,7 @@ async function forkVideo(track) {
     ctx.save();
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
-    try { ctx.drawImage(src, fp.dx, fp.dy, fp.dw, fp.dh); } catch {}
+    try { ctx.drawImage(src, fp.sx, fp.sy, fp.sw, fp.sh, 0, 0, canvas.width, canvas.height); } catch {}
     ctx.restore();
   };
   draw();
