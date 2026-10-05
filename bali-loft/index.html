@@ -4123,7 +4123,7 @@ void main() {
   if (box && now - box.t < 480) return box;
   let x = 0.5, y = 0.4, w = 0.72, h = 0.8, found = false;
   try {
-    const vw = v.videoWidth || v.naturalWidth, vh = v.videoHeight || v.naturalHeight;
+    const vw = v.videoWidth || v.naturalWidth || v.width, vh = v.videoHeight || v.naturalHeight || v.height;
     let W, H;
     if (vw >= vh) { W = 64; H = Math.max(18, Math.round(64 * vh / vw)); }
     else { H = 64; W = Math.max(18, Math.round(64 * vw / vh)); }
@@ -4191,17 +4191,29 @@ void main() {
   if (!found) {
     if (box && box.ok && now - box.t < 1600) return box;
     x = 0.5; y = 0.4; w = 0.72; h = 0.8;
-  }
-  if (box) {
-    x = box.x + (x - box.x) * 0.45;
-    y = box.y + (y - box.y) * 0.45;
-    w = box.w + (w - box.w) * 0.4;
-    h = box.h + (h - box.h) * 0.4;
+  } else if (box) {
+    if (Math.abs(x - box.x) < 0.015) x = box.x;
+    if (Math.abs(y - box.y) < 0.015) y = box.y;
+    if (Math.abs(w - box.w) < 0.025) w = box.w;
+    if (Math.abs(h - box.h) < 0.025) h = box.h;
   }
   return v._face = { x, y, w, h, t: now, ok: found };
 }
+function faceGlide(v, target) {
+  const now = performance.now();
+  let view = v._view;
+  if (!view) return v._view = { x: target.x, y: target.y, w: target.w, h: target.h, t: now };
+  const dt = Math.min(0.08, Math.max(0, (now - view.t) / 1000));
+  const k = 1 - Math.exp(-dt / 0.55), kz = 1 - Math.exp(-dt / 0.85);
+  view.x += (target.x - view.x) * k;
+  view.y += (target.y - view.y) * k;
+  view.w += (target.w - view.w) * kz;
+  view.h += (target.h - view.h) * kz;
+  view.t = now;
+  return view;
+}
 function facePlace(v, cw, ch) {
-  const vw = v.videoWidth || v.naturalWidth, vh = v.videoHeight || v.naturalHeight, f = faceSpot(v);
+  const vw = v.videoWidth || v.naturalWidth || v.width, vh = v.videoHeight || v.naturalHeight || v.height, f = faceGlide(v, faceSpot(v));
   const cover = Math.max(cw / vw, ch / vh);
   const faceH = Math.max(8, f.h * vh);
   const above = faceH * 0.95, below = faceH * 0.7;
