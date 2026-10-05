@@ -21,7 +21,20 @@ const ICE = [
 ];
 const NAMES = ["Алекс", "Мира", "Ника", "Лео", "Соня", "Марк", "Кира", "Тима", "Яна", "Глеб", "Нина", "Олег"];
 const COLORS = ["#3d8fd4", "#d45b3d", "#3daf6e", "#d4a03d", "#8a5ad4", "#d43d7a"];
-const phoneCam = ("ontouchstart" in window) || navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
+function deviceOri() {
+  const phone = ("ontouchstart" in window) || navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
+  if (!phone) return "l";
+  const vv = window.visualViewport;
+  const w = vv && vv.width ? vv.width : window.innerWidth;
+  const h = vv && vv.height ? vv.height : window.innerHeight;
+  return h > w ? "p" : "l";
+}
+function camVideoConstraints() {
+  const phone = navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
+  if (!phone) return { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } };
+  if (deviceOri() === "p") return { facingMode: "user", width: { ideal: 360, max: 480 }, height: { ideal: 480, max: 640 }, frameRate: { ideal: 15, max: 20 }, aspectRatio: { ideal: 0.75 } };
+  return { facingMode: "user", width: { ideal: 480, max: 640 }, height: { ideal: 360, max: 480 }, frameRate: { ideal: 15, max: 20 }, aspectRatio: { ideal: 1.333 } };
+}
 const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
 
 const enc = new TextEncoder();
@@ -371,12 +384,20 @@ async function forkVideo(track) {
       setTimeout(finish, 800);
     });
   }
-  canvas.width = phoneCam ? 240 : 480;
-  canvas.height = phoneCam ? 480 : 240;
+  const fitFork = () => {
+    const tall = deviceOri() === "p";
+    const ww = tall ? 240 : 480, hh = tall ? 480 : 240;
+    if (canvas.width !== ww || canvas.height !== hh) {
+      canvas.width = ww;
+      canvas.height = hh;
+    }
+  };
+  fitFork();
   const ctx = canvas.getContext("2d", { alpha: false });
   const draw = () => {
     const src = localVid;
     if (!src || src.readyState < 2 || !src.videoWidth || videoPhase !== "live") return;
+    fitFork();
     const fp = facePlace(src, canvas.width, canvas.height);
     ctx.fillStyle = "#0c1218";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -497,13 +518,21 @@ function videoTr(pc) {
 
 function publishRoster() {
   const list = [];
+  const map = {};
   for (const id of Object.keys(remotes)) {
     const p = remotes[id];
     if (!p || !p.name) continue;
-    list.push({ id, name: p.name, color: p.color || "#3d8fd4" });
+    const ori = p.ori === "p" ? "p" : "l";
+    list.push({ id, name: p.name, color: p.color || "#3d8fd4", ori });
+    map[id] = ori;
   }
-  if (myName) list.push({ id: myId, name: myName, color: myColor });
+  if (myName) {
+    const ori = deviceOri();
+    list.push({ id: myId, name: myName, color: myColor, ori });
+    map[myId] = ori;
+  }
   window.__screenPeople = list;
+  window.__ori = map;
 }
 function publishFeeds() {
   const list = [];
@@ -532,9 +561,7 @@ function attachVideo(id, track) {
     el.playsInline = true;
     el.setAttribute("playsinline", "");
     el.setAttribute("webkit-playsinline", "");
-    el.style.cssText = phoneCam
-      ? "position:absolute;left:0;top:0;width:240px;height:480px;opacity:0.02;pointer-events:none"
-      : "position:absolute;left:0;top:0;width:480px;height:240px;opacity:0.02;pointer-events:none";
+    el.style.cssText = "position:absolute;left:0;top:0;width:480px;height:480px;opacity:0.02;pointer-events:none";
     document.body.appendChild(el);
     L.video = el;
     el.dataset.pid = id;
@@ -719,6 +746,7 @@ function onHi(msg) {
     color: msg.color || COLORS[hash(msg.id) % COLORS.length],
     mic: !!msg.mic,
     mount: msg.mount === "horse" || msg.mount === "ski" ? msg.mount : "",
+    ori: msg.o === "p" ? "p" : msg.o === "l" ? "l" : (prev && prev.ori) || "l",
     at: Date.now(),
   };
   if (myId > msg.id) ensureLinks();
@@ -862,6 +890,7 @@ function onPos(msg) {
     color: (prev && prev.color) || COLORS[hash(msg.id) % COLORS.length],
     mic: prev ? !!prev.mic : false,
     mount: msg.mount === "horse" || msg.mount === "ski" ? msg.mount : (prev && prev.mount) || "",
+    ori: msg.o === "p" ? "p" : msg.o === "l" ? "l" : (prev && prev.ori) || "l",
     at: Date.now(),
   };
   publishRoster();
@@ -882,6 +911,7 @@ function publishHi() {
     color: myColor,
     mic: phase === "live",
     mount: p.mount || "",
+    o: deviceOri(),
   });
 }
 
@@ -896,8 +926,19 @@ function publishPos() {
     if (d < 0.04 && Math.abs(p.y - lastPose.y) < 0.04 && turn < 0.06 && lastPose.mount === p.mount) return;
   }
   lastPose = p;
-  send({ t: "pos", id: myId, x: p.x, y: p.y, z: p.z, yaw: p.yaw, name: myName, mount: p.mount || "" });
+  send({ t: "pos", id: myId, x: p.x, y: p.y, z: p.z, yaw: p.yaw, name: myName, mount: p.mount || "", o: deviceOri() });
 }
+function trackOri() {
+  const o = deviceOri();
+  if (o === trackOri.o) return;
+  trackOri.o = o;
+  publishRoster();
+  try { publishHi(); } catch (e) {}
+}
+trackOri.o = deviceOri();
+window.addEventListener("resize", trackOri);
+window.addEventListener("orientationchange", trackOri);
+if (window.visualViewport) window.visualViewport.addEventListener("resize", trackOri);
 
 setInterval(publishPos, 100);
 
@@ -1174,16 +1215,10 @@ async function toggleVideo() {
     paintCam();
     return;
   }
-  const phone = navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
-  const tries = phone
-    ? [
-        { video: { facingMode: "user", width: { ideal: 360, max: 480 }, height: { ideal: 480, max: 640 }, frameRate: { ideal: 15, max: 20 }, aspectRatio: { ideal: 0.75 } }, audio: false },
-        { video: { facingMode: "user" }, audio: false },
-      ]
-    : [
-        { video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
-        { video: true, audio: false },
-      ];
+  const tries = [
+    { video: camVideoConstraints(), audio: false },
+    { video: { facingMode: "user" }, audio: false },
+  ];
   let stream = null;
   for (const constraints of tries) {
     try {
