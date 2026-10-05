@@ -28,11 +28,11 @@ var s=document.createElement("script"),fin=0,tm=setTimeout(die,12e3);
 function die(){if(fin)return;fin=1;clearTimeout(tm);try{s.remove()}catch(e){}
 if(bag[slot]!=null)return ok();left>1?one(u.split("?")[0]+"?r="+left,slot,bag,left-1).then(ok,no):no(0)}
 s.onload=function(){if(fin)return;bag[slot]!=null?(fin=1,clearTimeout(tm),ok()):die()};s.onerror=die;s.src=u;document.head.appendChild(s)})}
-function cat(p,n,bag){var i=0;function w(){var k=i++;return k<n?one(base+p+("0"+k).slice(-2)+".js",k,bag,3).then(function(){say("Загрузка острова "+(++done)+"/__T__");return w()}):Promise.resolve()}
-return Promise.all([w(),w()])}
+function cat(p,n,bag){var i=0,a=[],j;function w(){var k=i++;return k<n?one(base+p+("0"+k).slice(-2)+".js",k,bag,3).then(function(){say("Загрузка острова "+(++done)+"/__T__");return w()}):Promise.resolve()}
+for(j=6;j--;)a.push(w());return Promise.all(a)}
 function mod(code,flag){return new Promise(function(ok,no){var s=document.createElement("script");s.type="module";s.textContent=code+";window."+flag+"=1;";var c=0,t=setInterval(function(){if(window[flag]){clearInterval(t);ok()}else if(++c>200){clearInterval(t);no(0)}},200);s.onerror=function(){clearInterval(t);no(0)};document.body.appendChild(s)})}
 say("Загрузка острова 0/__T__");
-cat("c",__G__,self.__g=[]).then(function(){say("Запуск острова…");return mod(self.__g.join(""),"__islandBooted")}).then(function(){return cat("v",__V__,self.__v=[])}).then(function(){return mod(self.__v.join(""),"__voiceBooted")}).catch(function(){bad=1;B&&(B.style.zIndex="80",B.textContent="Не удалось загрузить остров. Обновите страницу.")});
+var voice=cat("v",__V__,self.__v=[]);cat("c",__G__,self.__g=[]).then(function(){say("Запуск острова…");return mod(self.__g.join(""),"__islandBooted")}).then(function(){return voice}).then(function(){return mod(self.__v.join(""),"__voiceBooted")}).catch(function(){bad=1;B&&(B.style.zIndex="80",B.textContent="Не удалось загрузить остров. Обновите страницу.")});
 })();
 </script>
 """
