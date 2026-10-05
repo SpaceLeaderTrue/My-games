@@ -269,10 +269,10 @@ async function forkVideo(track) {
   };
   draw();
   let out = null;
-  try { out = canvas.captureStream(24).getVideoTracks()[0] || null; } catch { out = null; }
+  try { out = canvas.captureStream(15).getVideoTracks()[0] || null; } catch { out = null; }
   if (!out) return cloneTrack(track);
   try { out.contentHint = "motion"; } catch {}
-  const timer = setInterval(draw, 40);
+  const timer = setInterval(draw, 66);
   out._stopDraw = () => clearInterval(timer);
   return out;
 }
@@ -1056,7 +1056,7 @@ async function toggleVideo() {
   const phone = navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
   const tries = phone
     ? [
-        { video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 960 }, aspectRatio: { ideal: 0.75 } }, audio: false },
+        { video: { facingMode: "user", width: { ideal: 360, max: 480 }, height: { ideal: 480, max: 640 }, frameRate: { ideal: 15, max: 20 }, aspectRatio: { ideal: 0.75 } }, audio: false },
         { video: { facingMode: "user" }, audio: false },
       ]
     : [
