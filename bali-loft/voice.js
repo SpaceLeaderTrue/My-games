@@ -21,6 +21,7 @@ const ICE = [
 ];
 const NAMES = ["Алекс", "Мира", "Ника", "Лео", "Соня", "Марк", "Кира", "Тима", "Яна", "Глеб", "Нина", "Олег"];
 const COLORS = ["#3d8fd4", "#d45b3d", "#3daf6e", "#d4a03d", "#8a5ad4", "#d43d7a"];
+const phoneCam = ("ontouchstart" in window) || navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
 const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
 
 const enc = new TextEncoder();
@@ -336,8 +337,11 @@ function facePlace(v, cw, ch) {
   const headTop = f.y * vh - faceH * 0.55;
   const chin = f.y * vh + faceH * 0.46;
   const eyes = f.y * vh - faceH * 0.16;
-  let zoom = Math.max(cover, (ch * 0.8) / (faceH * 1.15));
-  if (zoom > cover * 3.2) zoom = cover * 3.2;
+  let zoom = cover;
+  if (ch <= cw) {
+    zoom = Math.max(cover, (ch * 0.8) / (faceH * 1.15));
+    if (zoom > cover * 3.2) zoom = cover * 3.2;
+  }
   let sw = cw / zoom, sh = ch / zoom;
   if (sw > vw || sh > vh) {
     const fit = Math.min(vw / sw, vh / sh);
@@ -367,8 +371,8 @@ async function forkVideo(track) {
       setTimeout(finish, 800);
     });
   }
-  canvas.width = 480;
-  canvas.height = 240;
+  canvas.width = phoneCam ? 240 : 480;
+  canvas.height = phoneCam ? 480 : 240;
   const ctx = canvas.getContext("2d", { alpha: false });
   const draw = () => {
     const src = localVid;
@@ -528,7 +532,9 @@ function attachVideo(id, track) {
     el.playsInline = true;
     el.setAttribute("playsinline", "");
     el.setAttribute("webkit-playsinline", "");
-    el.style.cssText = "position:absolute;left:0;top:0;width:480px;height:240px;opacity:0.02;pointer-events:none";
+    el.style.cssText = phoneCam
+      ? "position:absolute;left:0;top:0;width:240px;height:480px;opacity:0.02;pointer-events:none"
+      : "position:absolute;left:0;top:0;width:480px;height:240px;opacity:0.02;pointer-events:none";
     document.body.appendChild(el);
     L.video = el;
     el.dataset.pid = id;
