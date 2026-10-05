@@ -251,22 +251,28 @@ async function forkVideo(track) {
     });
   }
   canvas.width = 480;
-  canvas.height = 640;
+  canvas.height = 240;
   const ctx = canvas.getContext("2d", { alpha: false });
   const draw = () => {
     const src = localVid;
     if (!src || src.readyState < 2 || !src.videoWidth || videoPhase !== "live") return;
-    const sc = Math.min(canvas.width / src.videoWidth, canvas.height / src.videoHeight);
-    const dw = src.videoWidth * sc, dh = src.videoHeight * sc;
+    const vw = src.videoWidth, vh = src.videoHeight;
+    const sc = Math.max(canvas.width / vw, canvas.height / vh);
+    const dw = vw * sc, dh = vh * sc;
     ctx.fillStyle = "#0c1218";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    try { ctx.drawImage(src, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh); } catch {}
+    ctx.save();
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    try { ctx.drawImage(src, (canvas.width - dw) / 2, (canvas.height - dh) * 0.22, dw, dh); } catch {}
+    ctx.restore();
   };
   draw();
   let out = null;
-  try { out = canvas.captureStream(12).getVideoTracks()[0] || null; } catch { out = null; }
+  try { out = canvas.captureStream(24).getVideoTracks()[0] || null; } catch { out = null; }
   if (!out) return cloneTrack(track);
-  const timer = setInterval(draw, 80);
+  try { out.contentHint = "motion"; } catch {}
+  const timer = setInterval(draw, 40);
   out._stopDraw = () => clearInterval(timer);
   return out;
 }
@@ -283,7 +289,16 @@ async function armSender(L, kind, track) {
   const next = !track ? null : kind === "video" ? await forkVideo(track) : cloneTrack(track);
   L[key] = next;
   if (prev && prev !== next) stopClone(prev, track);
-  try { await tr.sender.replaceTrack(next); } catch {}
+  try {
+    await tr.sender.replaceTrack(next);
+    if (kind === "video" && next && tr.sender.getParameters) {
+      const params = tr.sender.getParameters();
+      if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+      params.encodings[0].maxBitrate = 1200000;
+      params.encodings[0].maxFramerate = 24;
+      await tr.sender.setParameters(params);
+    }
+  } catch {}
 }
 function closeLink(id) {
   const L = links.get(id);
@@ -398,7 +413,7 @@ function attachVideo(id, track) {
     el.playsInline = true;
     el.setAttribute("playsinline", "");
     el.setAttribute("webkit-playsinline", "");
-    el.style.cssText = "position:absolute;left:0;top:0;width:160px;height:120px;opacity:0.02;pointer-events:none";
+    el.style.cssText = "position:absolute;left:0;top:0;width:480px;height:240px;opacity:0.02;pointer-events:none";
     document.body.appendChild(el);
     L.video = el;
     el.dataset.pid = id;
