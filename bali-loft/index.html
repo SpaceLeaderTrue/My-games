@@ -4203,15 +4203,17 @@ void main() {
 function facePlace(v, cw, ch) {
   const vw = v.videoWidth || v.naturalWidth, vh = v.videoHeight || v.naturalHeight, f = faceSpot(v);
   const cover = Math.max(cw / vw, ch / vh);
-  const faceW = Math.max(8, f.w * vw), faceH = Math.max(8, f.h * vh);
-  let zoom = Math.max(cover, (ch * 0.88) / faceH, (cw * 0.52) / faceW);
-  if (zoom > cover * 4) zoom = cover * 4;
+  const faceH = Math.max(8, f.h * vh);
+  const above = faceH * 0.95, below = faceH * 0.7;
+  const headTop = f.y * vh - above;
+  let zoom = Math.max(cover, (ch * 0.74) / (above + below));
+  if (zoom > cover * 3.2) zoom = cover * 3.2;
   let sw = cw / zoom, sh = ch / zoom;
   if (sw > vw || sh > vh) {
     const fit = Math.min(vw / sw, vh / sh);
     sw *= fit; sh *= fit;
   }
-  let sx = f.x * vw - sw * 0.5, sy = f.y * vh - sh * 0.36;
+  let sx = f.x * vw - sw * 0.5, sy = headTop - sh * 0.06;
   if (sx < 0) sx = 0;
   if (sy < 0) sy = 0;
   if (sx > vw - sw) sx = Math.max(0, vw - sw);
