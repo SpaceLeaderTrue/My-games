@@ -1,15 +1,16 @@
 # My-games
 
-Brand: **Space Island**
+Brand: **SPACE** / Space Island
 
 ## Live links (open in browser)
 
-- Hub: https://raw.githack.com/SpaceLeaderTrue/My-games/gh-pages/index.html
-- **Река → Океан**: https://rawcdn.githack.com/SpaceLeaderTrue/My-games/gh-pages/river-ocean/index.html
-- Logo: https://raw.githack.com/SpaceLeaderTrue/My-games/gh-pages/brand/logo.svg
-- **PDF presentation**: https://raw.githack.com/SpaceLeaderTrue/My-games/gh-pages/presentations/space-island.pdf
+- **Река → Океан (игра)**: https://wisdom-cheese-matrix-chosen.trycloudflare.com/river-ocean/
+- **PDF presentation (скачать)**: https://github.com/SpaceLeaderTrue/My-games/releases/download/space-deck-2026-10-06/space-island.pdf
+- **PDF (открыть в браузере)**: https://cdn.jsdelivr.net/gh/SpaceLeaderTrue/My-games@gh-pages/presentations/space-island.pdf
+- Hub: https://wisdom-cheese-matrix-chosen.trycloudflare.com/
+- Logo: https://cdn.jsdelivr.net/gh/SpaceLeaderTrue/My-games@gh-pages/brand/logo.svg
 
-To put this on your own domain: enable GitHub Pages for the `gh-pages` branch (already published), or deploy the same folder to Surge.
+Для постоянной ссылки на своём домене: в GitHub → Settings → Pages включите branch `gh-pages` (или Surge).
 
 ## Space Island 3D
 
@@ -19,9 +20,9 @@ Local: [`bali-loft/index.html`](bali-loft/index.html)
 
 ## Река → Океан
 
-Play as a river finding its path to the ocean. Trailer-style 3D scene, Space Island branding throughout.
+Play as a river finding its path to the ocean. Trailer-style 3D scene, SPACE branding throughout.
 
-- Live: https://raw.githack.com/SpaceLeaderTrue/My-games/gh-pages/river-ocean/index.html
+- Live: https://wisdom-cheese-matrix-chosen.trycloudflare.com/river-ocean/
 - Local: [`river-ocean/index.html`](river-ocean/index.html)
 
 ## Север — сектор Лиры
@@ -32,5 +33,6 @@ Local: [`space-cockpit/index.html`](space-cockpit/index.html)
 
 ## Presentation
 
-- Live PDF: https://raw.githack.com/SpaceLeaderTrue/My-games/gh-pages/presentations/space-island.pdf
+- Download: https://github.com/SpaceLeaderTrue/My-games/releases/download/space-deck-2026-10-06/space-island.pdf
+- Browser: https://cdn.jsdelivr.net/gh/SpaceLeaderTrue/My-games@gh-pages/presentations/space-island.pdf
 - Local: [`presentations/space-island.pdf`](presentations/space-island.pdf) · HTML [`presentations/space-island.html`](presentations/space-island.html)
