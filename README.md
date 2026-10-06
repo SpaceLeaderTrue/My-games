@@ -5,7 +5,7 @@ Brand: **Space Island**
 ## Live links (open in browser)
 
 - Hub: https://raw.githack.com/SpaceLeaderTrue/My-games/gh-pages/index.html
-- **Река → Океан**: https://raw.githack.com/SpaceLeaderTrue/My-games/gh-pages/river-ocean/index.html
+- **Река → Океан**: https://rawcdn.githack.com/SpaceLeaderTrue/My-games/gh-pages/river-ocean/index.html
 - Logo: https://raw.githack.com/SpaceLeaderTrue/My-games/gh-pages/brand/logo.svg
 - **PDF presentation**: https://raw.githack.com/SpaceLeaderTrue/My-games/gh-pages/presentations/space-island.pdf
 
