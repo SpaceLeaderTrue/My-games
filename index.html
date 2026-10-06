@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Space Island</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#070b10; --ink:#f3f6f9; --soft:rgba(230,238,245,.72); --dim:rgba(170,196,216,.5); --line:rgba(200,220,235,.14); --accent:#8ec8e4; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      min-height:100svh; background:var(--bg); color:var(--ink);
+      font-family:Manrope,system-ui,sans-serif;
+      background-image:
+        radial-gradient(ellipse 70% 50% at 80% 0%, rgba(90,150,190,.18), transparent 55%),
+        radial-gradient(ellipse 50% 40% at 10% 100%, rgba(40,80,100,.2), transparent 50%);
+      padding: max(1.5rem, env(safe-area-inset-top)) 1.25rem 2.5rem;
+    }
+    .wrap { max-width: 44rem; margin: 0 auto; }
+    .logo { display:flex; align-items:center; gap:.75rem; margin-bottom:2.5rem; text-decoration:none; color:inherit; }
+    .logo svg { width:2.2rem; height:2.2rem; }
+    .logo b { font-family:Syne,sans-serif; letter-spacing:.28em; font-size:.75rem; text-transform:uppercase; }
+    .logo span { display:block; color:var(--dim); letter-spacing:.36em; font-size:.62rem; font-weight:500; margin-top:.15rem; }
+    h1 { font-family:Syne,sans-serif; font-weight:800; font-size:clamp(2.2rem,7vw,3.6rem); letter-spacing:-.04em; line-height:.98; max-width:12ch; }
+    .lede { color:var(--soft); margin:1rem 0 2rem; max-width:34ch; line-height:1.45; }
+    .grid { display:grid; gap:.85rem; }
+    a.card {
+      display:block; text-decoration:none; color:inherit;
+      border:1px solid var(--line); background:rgba(255,255,255,.03);
+      border-radius:18px; padding:1.15rem 1.2rem;
+      transition:border-color .2s, background .2s;
+    }
+    a.card:hover { border-color:rgba(255,255,255,.28); background:rgba(255,255,255,.05); }
+    a.card strong { font-family:Syne,sans-serif; font-size:1.15rem; letter-spacing:-.02em; display:block; margin-bottom:.35rem; }
+    a.card p { color:var(--soft); font-size:.92rem; line-height:1.4; }
+    a.card em { color:var(--accent); font-style:normal; font-size:.72rem; letter-spacing:.2em; text-transform:uppercase; display:block; margin-bottom:.45rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="logo" href="./">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="#A8C4D8" stroke-width="1.2" opacity=".55"/><path d="M8 30 C15 21,20 17,24 17 C28 17,33 21,40 30" fill="none" stroke="#F4F7FB" stroke-width="2.2" stroke-linecap="round"/><path d="M12 34 H36" stroke="#7EC8E8" stroke-width="1.5" stroke-linecap="round" opacity=".7"/><circle cx="24" cy="12" r="2" fill="#F4F7FB"/></svg>
+      <b>Space<span>Island</span></b>
+    </a>
+    <h1>Мир, в который хочется войти.</h1>
+    <p class="lede">Игры и пространства Space Island — открывайте по ссылке.</p>
+    <div class="grid">
+      <a class="card" href="./river-ocean/">
+        <em>Игра</em>
+        <strong>Река → Океан</strong>
+        <p>Станьте потоком и найдите путь к горизонту.</p>
+      </a>
+      <a class="card" href="./island/">
+        <em>Мир</em>
+        <strong>Space Island 3D</strong>
+        <p>Остров, вилла, голос и карта.</p>
+      </a>
+      <a class="card" href="./presentations/space-island.pdf">
+        <em>PDF</em>
+        <strong>Презентация для партнёров</strong>
+        <p>Скачать deck в формате PDF.</p>
+      </a>
+      <a class="card" href="./presentations/space-island.html">
+        <em>Слайды</em>
+        <strong>Презентация в браузере</strong>
+        <p>Та же история — HTML-версия.</p>
+      </a>
+      <a class="card" href="./brand/logo.svg">
+        <em>Бренд</em>
+        <strong>Логотип Space Island</strong>
+        <p>SVG-знак и wordmark.</p>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

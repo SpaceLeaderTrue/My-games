@@ -1,0 +1,9 @@
+{
+  "name": "Bali Loft",
+  "short_name": "Bali Loft",
+  "display": "fullscreen",
+  "orientation": "any",
+  "start_url": "./",
+  "background_color": "#081018",
+  "theme_color": "#081018"
+}

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Space Island — Presentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #070b10;
+      --ink: #f3f6f9;
+      --soft: rgba(230, 238, 245, 0.7);
+      --dim: rgba(170, 196, 216, 0.45);
+      --line: rgba(200, 220, 235, 0.14);
+      --accent: #8ec8e4;
+      --card: #0d141c;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: #111; color: var(--ink);
+      font-family: Manrope, system-ui, sans-serif;
+    }
+    @page { size: 297mm 167mm; margin: 0; }
+    .deck {
+      width: 297mm;
+      margin: 0 auto;
+    }
+    .slide {
+      width: 297mm; height: 167mm;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+      page-break-after: always;
+      break-after: page;
+      padding: 14mm 16mm;
+      display: flex; flex-direction: column;
+    }
+    .slide::before {
+      content: "";
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 70% 55% at 85% -10%, rgba(90,150,190,0.16), transparent 55%),
+        radial-gradient(ellipse 50% 40% at 10% 110%, rgba(50,90,110,0.18), transparent 50%);
+      pointer-events: none;
+    }
+    .slide > * { position: relative; z-index: 1; }
+    .logo-row {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: auto;
+    }
+    .logo-mark {
+      width: 28px; height: 28px; flex: none;
+    }
+    .logo-word {
+      font-family: Syne, sans-serif; font-weight: 700;
+      letter-spacing: 0.28em; font-size: 11px; text-transform: uppercase;
+      line-height: 1.2;
+    }
+    .logo-word span {
+      display: block; color: var(--dim); font-weight: 500;
+      letter-spacing: 0.36em; font-size: 9px; margin-top: 2px;
+    }
+    .eyebrow {
+      color: var(--accent); letter-spacing: 0.32em; text-transform: uppercase;
+      font-size: 10px; font-weight: 600; margin-bottom: 10px;
+    }
+    h1 {
+      font-family: Syne, sans-serif; font-weight: 800;
+      font-size: 52px; letter-spacing: -0.04em; line-height: 0.98;
+      max-width: 14ch;
+    }
+    h2 {
+      font-family: Syne, sans-serif; font-weight: 800;
+      font-size: 34px; letter-spacing: -0.03em; line-height: 1.05;
+      max-width: 18ch; margin-bottom: 12px;
+    }
+    .lede {
+      color: var(--soft); font-size: 16px; line-height: 1.45;
+      max-width: 42ch; margin-top: 14px;
+    }
+    .footer {
+      margin-top: auto; display: flex; justify-content: space-between;
+      align-items: flex-end; color: var(--dim); font-size: 10px;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      padding-top: 12px; border-top: 1px solid var(--line);
+    }
+    .grid-3 {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      margin-top: 18px;
+    }
+    .card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--line);
+      border-radius: 16px; padding: 16px 16px 18px;
+      min-height: 88px;
+    }
+    .card h3 {
+      font-family: Syne, sans-serif; font-size: 15px; font-weight: 700;
+      letter-spacing: -0.02em; margin-bottom: 8px;
+    }
+    .card p { color: var(--soft); font-size: 12.5px; line-height: 1.4; }
+    .big-quote {
+      font-family: Syne, sans-serif; font-weight: 700;
+      font-size: 28px; letter-spacing: -0.03em; line-height: 1.2;
+      max-width: 22ch; margin: 24px 0 10px;
+    }
+    .stat-row {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+      margin-top: 22px;
+    }
+    .stat {
+      border-top: 1px solid var(--line); padding-top: 10px;
+    }
+    .stat b {
+      display: block; font-family: Syne, sans-serif; font-size: 26px;
+      font-weight: 800; letter-spacing: -0.03em;
+    }
+    .stat span { color: var(--dim); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .two {
+      display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 22px;
+      margin-top: 8px; flex: 1; align-items: center;
+    }
+    .pillars { display: flex; flex-direction: column; gap: 10px; }
+    .pillar {
+      border-left: 2px solid var(--accent);
+      padding: 4px 0 4px 14px;
+    }
+    .pillar strong { display: block; font-size: 14px; margin-bottom: 3px; }
+    .pillar span { color: var(--soft); font-size: 12.5px; line-height: 1.35; }
+    .closing h1 { font-size: 44px; max-width: 16ch; }
+    .muted { color: var(--soft); font-size: 14px; line-height: 1.45; max-width: 40ch; margin-top: 12px; }
+    .contact {
+      margin-top: 22px; display: flex; gap: 28px; flex-wrap: wrap;
+      color: var(--soft); font-size: 13px;
+    }
+    .contact b { display: block; color: var(--ink); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 4px; }
+    @media screen {
+      body { padding: 24px 0 48px; }
+      .slide {
+        margin: 0 auto 28px;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+        border-radius: 4px;
+      }
+      .print-bar {
+        width: 297mm; margin: 0 auto 18px; display: flex;
+        justify-content: space-between; align-items: center;
+        color: #ccc; font-size: 13px;
+      }
+      .print-bar a {
+        color: #111; background: #fff; text-decoration: none;
+        padding: 10px 16px; border-radius: 999px; font-weight: 700;
+      }
+    }
+    @media print {
+      body { background: #000; padding: 0; }
+      .print-bar { display: none !important; }
+      .slide { box-shadow: none; border-radius: 0; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-bar">
+    <span>Space Island · конфиденциально</span>
+    <a href="#" onclick="window.print(); return false;">Скачать PDF</a>
+  </div>
+  <div class="deck">
+
+    <!-- 1 Cover -->
+    <section class="slide">
+      <div class="logo-row">
+        <svg class="logo-mark" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="#A8C4D8" stroke-width="1.2" opacity=".55"/><path d="M8 30 C15 21,20 17,24 17 C28 17,33 21,40 30" fill="none" stroke="#F4F7FB" stroke-width="2.2" stroke-linecap="round"/><path d="M12 34 H36" stroke="#7EC8E8" stroke-width="1.5" stroke-linecap="round" opacity=".7"/><circle cx="24" cy="12" r="2" fill="#F4F7FB"/></svg>
+        <div class="logo-word">Space<span>Island</span></div>
+      </div>
+      <p class="eyebrow">Конфиденциально · 2026</p>
+      <h1>Мир, в который хочется войти.</h1>
+      <p class="lede">Space Island — платформа живых пространств и игр, где бренд звучит так же ясно, как продукт на сцене Apple или пуск SpaceX.</p>
+      <div class="footer">
+        <span>Space Island</span>
+        <span>01 / 08</span>
+      </div>
+    </section>
+
+    <!-- 2 Vision -->
+    <section class="slide">
+      <div class="logo-row">
+        <svg class="logo-mark" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="none" stroke="#A8C4D8" stroke-width="1.2" opacity=".55"/><path d="M8 30 C15 21,20 17,24 17 C28 17,33 21,40 30" fill="none" stroke="#F4F7FB" stroke-width="2.2" stroke-linecap="round"/><circle cx="24" cy="12" r="2" fill="#F4F7FB"/></svg>
+        <div class="logo-word">Space<span>Island</span></div>
+      </div>
+      <p class="eyebrow">Видение</p>
+      <h2>Не лента. Не меню. Место.</h2>
+      <p class="big-quote">Люди устали от интерфейсов. Им нужны миры с характером.</p>
+      <p class="lede">Мы собираем остров, небо и реку в одну экосистему: зайти, услышать друг друга, сыграть, запомнить бренд — без шума и без лишнего.</p>
+      <div class="footer"><span>Vision</span><span>02 / 08</span></div>
+    </section>
+
+    <!-- 3 Product -->
+    <section class="slide">
+      <div class="logo-row">
+        <svg class="logo-mark" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="none" stroke="#A8C4D8" stroke-width="1.2" opacity=".55"/><path d="M8 30 C15 21,20 17,24 17 C28 17,33 21,40 30" fill="none" stroke="#F4F7FB" stroke-width="2.2" stroke-linecap="round"/><circle cx="24" cy="12" r="2" fill="#F4F7FB"/></svg>
+        <div class="logo-word">Space<span>Island</span></div>
+      </div>
+      <p class="eyebrow">Продукт</p>
+      <h2>Три опыта. Один язык.</h2>
+      <div class="grid-3">
+        <div class="card">
+          <h3>Space Island 3D</h3>
+          <p>Остров с виллой, голосом и картой. Социальное пространство, которое ощущается как место, а не чат.</p>
+        </div>
+        <div class="card">
+          <h3>Река → Океан</h3>
+          <p>Игра, где вы — поток. Красивая трёхмерная сцена в духе рекламного ролика будущего.</p>
+        </div>
+        <div class="card">
+          <h3>Север · сектор Лиры</h3>
+          <p>Кабина дальнего хода. Орбиты, созвездия, гравитация — путешествие как инструмент мышления.</p>
+        </div>
+      </div>
+      <div class="footer"><span>Product</span><span>03 / 08</span></div>
+    </section>
+
+    <!-- 4 River spotlight -->
+    <section class="slide">
+      <div class="logo-row">
+        <svg class="logo-mark" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="none" stroke="#A8C4D8" stroke-width="1.2" opacity=".55"/><path d="M8 30 C15 21,20 17,24 17 C28 17,33 21,40 30" fill="none" stroke="#F4F7FB" stroke-width="2.2" stroke-linecap="round"/><circle cx="24" cy="12" r="2" fill="#F4F7FB"/></svg>
+        <div class="logo-word">Space<span>Island</span></div>
+      </div>
+      <div class="two">
+        <div>
+          <p class="eyebrow">Новый релиз</p>
+          <h2>Стань рекой.</h2>
+          <p class="lede">Минимальное управление. Максимальный кадр. Игрок ведёт поток к горизонту — как в трейлере, который нельзя поставить на паузу.</p>
+          <div class="pillars" style="margin-top:18px">
+            <div class="pillar"><strong>Эстетика запуска</strong><span>Тёмный кадр, серебро, вода, типографика Syne — язык премиальных презентаций.</span></div>
+            <div class="pillar"><strong>Бренд внутри мира</strong><span>Логотип Space Island в HUD, на монументах сцены и в финале победы.</span></div>
+            <div class="pillar"><strong>Один жест</strong><span>Влево / вправо. Река течёт сама. Смысл — в траектории.</span></div>
+          </div>
+        </div>
+        <div class="card" style="min-height:120px;display:flex;flex-direction:column;justify-content:flex-end;background:linear-gradient(160deg,#0a1822,#132830 55%,#1a3a48)">
+          <p class="eyebrow">Tagline</p>
+          <h3 style="font-size:22px;line-height:1.15;font-family:Syne,sans-serif">Find the ocean.<br/>Keep your form.</h3>
+        </div>
+      </div>
+      <div class="footer"><span>River</span><span>04 / 08</span></div>
+    </section>
+
+    <!-- 5 Why now -->
+    <section class="slide">
+      <div class="logo-row">
+        <svg class="logo-mark" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="none" stroke="#A8C4D8" stroke-width="1.2" opacity=".55"/><path d="M8 30 C15 21,20 17,24 17 C28 17,33 21,40 30" fill="none" stroke="#F4F7FB" stroke-width="2.2" stroke-linecap="round"/><circle cx="24" cy="12" r="2" fill="#F4F7FB"/></svg>
+        <div class="logo-word">Space<span>Island</span></div>
+      </div>
+      <p class="eyebrow">Почему сейчас</p>
+      <h2>Момент для пространств с лицом.</h2>
+      <div class="stat-row">
+        <div class="stat"><b>3D</b><span>как язык бренда</span></div>
+        <div class="stat"><b>Real-time</b><span>голос и присутствие</span></div>
+        <div class="stat"><b>Web</b><span>без установки</span></div>
+        <div class="stat"><b>Story</b><span>вместо баннера</span></div>
+      </div>
+      <p class="lede" style="margin-top:28px">Рынок перенасыщен утилитарными продуктами. Выигрывают те, кто делает опыт, который хочется переслать Оскару Хартманну, Игорю Рыбакову или партнёру КСК — без оправданий за вкус.</p>
+      <div class="footer"><span>Timing</span><span>05 / 08</span></div>
+    </section>
+
+    <!-- 6 Brand system -->
+    <section class="slide">
+      <div class="logo-row">
+        <svg class="logo-mark" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="none" stroke="#A8C4D8" stroke-width="1.2" opacity=".55"/><path d="M8 30 C15 21,20 17,24 17 C28 17,33 21,40 30" fill="none" stroke="#F4F7FB" stroke-width="2.2" stroke-linecap="round"/><circle cx="24" cy="12" r="2" fill="#F4F7FB"/></svg>
+        <div class="logo-word">Space<span>Island</span></div>
+      </div>
+      <p class="eyebrow">Бренд</p>
+      <h2>Логотип — не наклейка. Ориентир.</h2>
+      <div class="grid-3">
+        <div class="card">
+          <h3>Знак горизонта</h3>
+          <p>Остров, дуга неба и точка восхода. Читается на тёмном кадре и в миниатюре HUD.</p>
+        </div>
+        <div class="card">
+          <h3>Тишина кадра</h3>
+          <p>Много воздуха, мало слов. Как Keynote: одна мысль на слайд, один жест на экран.</p>
+        </div>
+        <div class="card">
+          <h3>Материалы мира</h3>
+          <p>Вода, песок, металл, ночь. Палитра запуска, а не «игрового UI».</p>
+        </div>
+      </div>
+      <div class="footer"><span>Brand</span><span>06 / 08</span></div>
+    </section>
+
+    <!-- 7 Opportunity -->
+    <section class="slide">
+      <div class="logo-row">
+        <svg class="logo-mark" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="none" stroke="#A8C4D8" stroke-width="1.2" opacity=".55"/><path d="M8 30 C15 21,20 17,24 17 C28 17,33 21,40 30" fill="none" stroke="#F4F7FB" stroke-width="2.2" stroke-linecap="round"/><circle cx="24" cy="12" r="2" fill="#F4F7FB"/></svg>
+        <div class="logo-word">Space<span>Island</span></div>
+      </div>
+      <p class="eyebrow">Возможность</p>
+      <h2>От острова — к платформе впечатлений.</h2>
+      <div class="pillars" style="margin-top:16px;max-width:54ch">
+        <div class="pillar"><strong>Для гостей</strong><span>Зайти по ссылке, услышать людей, пройти маршрут реки, остаться в памяти бренда.</span></div>
+        <div class="pillar"><strong>Для партнёров</strong><span>Белые пространства под события, запуски и закрытые показы — с вашим смыслом внутри нашего мира.</span></div>
+        <div class="pillar"><strong>Для капитала</strong><span>Короткий цикл производства опыта + сильный визуальный язык = актив, который продаёт сам себя.</span></div>
+      </div>
+      <div class="footer"><span>Opportunity</span><span>07 / 08</span></div>
+    </section>
+
+    <!-- 8 Close -->
+    <section class="slide closing">
+      <div class="logo-row">
+        <svg class="logo-mark" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="none" stroke="#A8C4D8" stroke-width="1.2" opacity=".55"/><path d="M8 30 C15 21,20 17,24 17 C28 17,33 21,40 30" fill="none" stroke="#F4F7FB" stroke-width="2.2" stroke-linecap="round"/><circle cx="24" cy="12" r="2" fill="#F4F7FB"/></svg>
+        <div class="logo-word">Space<span>Island</span></div>
+      </div>
+      <p class="eyebrow">Приглашение</p>
+      <h1>Давайте найдём океан вместе.</h1>
+      <p class="muted">Готовы показать живой остров, реку и кабину — лично или по ссылке. Без демо-шума. Только кадр, который держит.</p>
+      <div class="contact">
+        <div><b>Продукт</b>Space Island · Река · Север</div>
+        <div><b>Формат</b>Web · Real-time 3D · Voice</div>
+        <div><b>Статус</b>Рабочие миры · открыты к диалогу</div>
+      </div>
+      <div class="footer"><span>Space Island</span><span>08 / 08</span></div>
+    </section>
+
+  </div>
+</body>
+</html>
