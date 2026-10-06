@@ -1,19 +1,24 @@
 # SPACE brand logo
 
-Source photo: `brand/logo-source.jpg` (hoodie + tee).
+Official sources:
+- `brand/logo-official-source.jpg` — clean lockup on black
+- `brand/logo-official.png` — extracted white wordmark
+- shirt photos: `brand/01a11064-0183-*.jpg`, `brand/01a11064-01d2-*.jpg`
 
 ## Wordmark
 - Text: **SPACE** (Latin, all caps)
 - Color: white `#FFFFFF` on black / dark
-- Style: wide geometric sans, generous tracking
-- Distinctive: letter **A has no crossbar** (open chevron / Λ shape)
-- S, P, C, E: clean rounded geometric forms, uniform stroke feel
+- Style: wide / extended geometric sans, rounded corners throughout
+- **Letter A HAS a horizontal crossbar** (do not use barless Λ)
+- P bowl closed; S/C open curves; E three equal bars with rounded ends
+- Optional ghost word **ISLAND** above SPACE (very dark / faint) in some lockups
 
-## Mark (optional small)
-- Minimal upward chevron / rocket tip above wordmark (as on tee)
-- Used alone in tight HUD corners
+## Files
+- `brand/logo.svg` / `brand/wordmark.svg` — traced official wordmark
+- `brand/logo-white.png` / `brand/logo-black.png` — rasters
+- `brand/mark.svg` — compact mark for tight HUD (chevron optional; prefer wordmark)
 
-## Usage
-- Prefer white wordmark on dark UI
-- Do NOT use the old "horizon island circle" mark
-- Do NOT append "Island" into the logo lockup; product names can sit nearby in UI type
+## Rules
+- Prefer the official wordmark over any temporary island-circle mark
+- Do not invent a barless A
+- Product names (Island, River…) sit near the logo in UI type, not inside the wordmark
