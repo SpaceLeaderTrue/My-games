@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#04070b" />
-  <title>Река — Space Island</title>
+  <title>Река — SPACE</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -26,17 +26,11 @@
       overflow: hidden; position: fixed; inset: 0;
     }
     #scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-    .mark {
-      width: 1.85rem; height: 1.85rem; flex: none;
-    }
-    .word {
-      font-family: Syne, sans-serif; font-weight: 700;
-      letter-spacing: 0.3em; font-size: 0.68rem; text-transform: uppercase; line-height: 1.15;
-    }
-    .word span {
-      display: block; font-weight: 500; letter-spacing: 0.4em;
-      color: var(--dim); font-size: 0.58rem; margin-top: 0.14rem;
-    }
+    .space-logo { height: 1.05rem; width: auto; display: block; color: #fff; }
+    .space-logo.lg { height: 1.35rem; }
+    .space-logo.xl { height: clamp(1.4rem, 3.5vw, 2rem); }
+    .space-mark { width: 1.35rem; height: 1.35rem; color: #fff; display: block; }
+    .logo { display: inline-flex; align-items: center; gap: 0.55rem; text-decoration: none; color: inherit; }
     .logo {
       display: inline-flex; align-items: center; gap: 0.65rem;
       text-decoration: none; color: inherit;
@@ -62,11 +56,9 @@
       animation: rise 1.15s cubic-bezier(.22,1,.36,1) both;
     }
     #intro .brand-hero {
-      font-family: Syne, sans-serif; font-weight: 800;
-      font-size: clamp(1.05rem, 2.8vw, 1.35rem);
-      letter-spacing: 0.34em; text-transform: uppercase;
-      margin-bottom: 1.1rem; color: var(--ink);
+      margin-bottom: 1.15rem; color: var(--ink);
     }
+    #intro .brand-hero .space-logo { filter: drop-shadow(0 10px 28px rgba(0,0,0,.35)); }
     #intro h1 {
       font-family: Syne, sans-serif; font-weight: 800;
       font-size: clamp(2.6rem, 8vw, 5rem); letter-spacing: -0.045em;
@@ -160,14 +152,11 @@
 
     <div id="intro">
       <div class="top">
-        <a class="logo" href="../index.html" aria-label="Space Island">
-          <svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="#A8C4D8" stroke-width="1.2" opacity=".55"/><path d="M8 30 C15 21,20 17,24 17 C28 17,33 21,40 30" fill="none" stroke="#F4F7FB" stroke-width="2.2" stroke-linecap="round"/><path d="M12 34 H36" stroke="#7EC8E8" stroke-width="1.5" stroke-linecap="round" opacity=".7"/><circle cx="24" cy="12" r="2" fill="#F4F7FB"/></svg>
-          <div class="word">Space<span>Island</span></div>
-        </a>
+        <a class="logo" href="../index.html" aria-label="SPACE"><svg class="space-logo lg" viewBox="0 0 600 120" aria-label="SPACE" xmlns="http://www.w3.org/2000/svg"><g fill="currentColor"><path d="M86 16c-24 0-43 14-43 36 0 16 10 27 31 32l12 3c9 2 13 5 13 12 0 10-10 16-25 16-16 0-29-7-34-20l-19 8c8 20 29 34 55 34 30 0 52-16 52-42 0-18-11-30-32-34l-14-3c-8-2-12-5-12-10 0-8 9-13 22-13 14 0 25 6 29 17l19-8C134 29 113 16 86 16z"/><path d="M162 22h42c34 0 56 20 56 50s-22 50-56 50h-23v36h-19V22zm19 17v66h21c21 0 35-12 35-33s-14-33-35-33h-21z"/><path d="M332 118h-20l-10-28h-48l-10 28h-20L274 22h22l58 96zm-26-44l-18-50-18 50h36z"/><path d="M420 16c-41 0-70 32-70 74s29 74 70 74c25 0 44-10 57-27l-17-12c-9 11-21 18-39 18-27 0-46-21-46-53s19-53 46-53c18 0 30 7 39 18l17-12c-13-17-32-27-57-27z"/><path d="M492 22h86v17h-67v36h60v17h-60v36h71v17H492V22z"/></g></svg></a>
       </div>
       <div></div>
       <div class="hero">
-        <p class="brand-hero">Space Island</p>
+        <div class="brand-hero"><svg class="space-logo xl" viewBox="0 0 600 120" aria-label="SPACE" xmlns="http://www.w3.org/2000/svg"><g fill="currentColor"><path d="M86 16c-24 0-43 14-43 36 0 16 10 27 31 32l12 3c9 2 13 5 13 12 0 10-10 16-25 16-16 0-29-7-34-20l-19 8c8 20 29 34 55 34 30 0 52-16 52-42 0-18-11-30-32-34l-14-3c-8-2-12-5-12-10 0-8 9-13 22-13 14 0 25 6 29 17l19-8C134 29 113 16 86 16z"/><path d="M162 22h42c34 0 56 20 56 50s-22 50-56 50h-23v36h-19V22zm19 17v66h21c21 0 35-12 35-33s-14-33-35-33h-21z"/><path d="M332 118h-20l-10-28h-48l-10 28h-20L274 22h22l58 96zm-26-44l-18-50-18 50h36z"/><path d="M420 16c-41 0-70 32-70 74s29 74 70 74c25 0 44-10 57-27l-17-12c-9 11-21 18-39 18-27 0-46-21-46-53s19-53 46-53c18 0 30 7 39 18l17-12c-13-17-32-27-57-27z"/><path d="M492 22h86v17h-67v36h60v17h-60v36h71v17H492V22z"/></g></svg></div>
         <h1>Стань рекой.</h1>
         <p class="lede">Один поток. Один горизонт. Найдите путь к океану.</p>
         <div class="cta-row">
@@ -179,9 +168,7 @@
 
     <div id="hud" aria-hidden="true">
       <div class="topbar">
-        <a class="logo" href="../index.html" id="hud-logo" style="pointer-events:auto">
-          <svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="#A8C4D8" stroke-width="1.2" opacity=".55"/><path d="M8 30 C15 21,20 17,24 17 C28 17,33 21,40 30" fill="none" stroke="#F4F7FB" stroke-width="2.2" stroke-linecap="round"/><circle cx="24" cy="12" r="2" fill="#F4F7FB"/></svg>
-        </a>
+        <a class="logo" href="../index.html" id="hud-logo" style="pointer-events:auto" aria-label="SPACE"><svg class="space-mark" viewBox="0 0 64 64" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M32 8 L50 36 H40 V56 H24 V36 H14 Z"/></svg></a>
         <div class="meter">
           <label><span>До океана</span><span id="pct">0%</span></label>
           <div class="track"><div class="fill" id="progress"></div></div>
@@ -192,7 +179,7 @@
 
     <div id="win">
       <div>
-        <svg class="mark" viewBox="0 0 48 48" style="margin:0 auto 1rem;width:2.4rem;height:2.4rem" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="#A8C4D8" stroke-width="1.2" opacity=".55"/><path d="M8 30 C15 21,20 17,24 17 C28 17,33 21,40 30" fill="none" stroke="#F4F7FB" stroke-width="2.2" stroke-linecap="round"/><circle cx="24" cy="12" r="2" fill="#F4F7FB"/></svg>
+        <div style="display:flex;justify-content:center;margin-bottom:1rem"><svg class="space-logo xl" viewBox="0 0 600 120" aria-label="SPACE" xmlns="http://www.w3.org/2000/svg"><g fill="currentColor"><path d="M86 16c-24 0-43 14-43 36 0 16 10 27 31 32l12 3c9 2 13 5 13 12 0 10-10 16-25 16-16 0-29-7-34-20l-19 8c8 20 29 34 55 34 30 0 52-16 52-42 0-18-11-30-32-34l-14-3c-8-2-12-5-12-10 0-8 9-13 22-13 14 0 25 6 29 17l19-8C134 29 113 16 86 16z"/><path d="M162 22h42c34 0 56 20 56 50s-22 50-56 50h-23v36h-19V22zm19 17v66h21c21 0 35-12 35-33s-14-33-35-33h-21z"/><path d="M332 118h-20l-10-28h-48l-10 28h-20L274 22h22l58 96zm-26-44l-18-50-18 50h36z"/><path d="M420 16c-41 0-70 32-70 74s29 74 70 74c25 0 44-10 57-27l-17-12c-9 11-21 18-39 18-27 0-46-21-46-53s19-53 46-53c18 0 30 7 39 18l17-12c-13-17-32-27-57-27z"/><path d="M492 22h86v17h-67v36h60v17h-60v36h71v17H492V22z"/></g></svg></div>
         <h2>Океан.</h2>
         <div class="stats">
           <div><b id="win-time">0:00</b>время</div>
@@ -201,7 +188,7 @@
         <p>Поток нашёл горизонт.</p>
         <div class="cta-row" style="justify-content:center">
           <button type="button" class="btn btn-primary" id="btn-again">Ещё раз</button>
-          <a class="btn btn-ghost" href="../index.html">Space Island</a>
+          <a class="btn btn-ghost" href="../index.html">SPACE</a>
         </div>
       </div>
     </div>
