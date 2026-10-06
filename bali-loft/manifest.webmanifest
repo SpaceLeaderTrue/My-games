@@ -1,0 +1,9 @@
+{
+  "name": "Space Island 3D",
+  "short_name": "Space Island 3D",
+  "display": "fullscreen",
+  "orientation": "any",
+  "start_url": "./",
+  "background_color": "#081018",
+  "theme_color": "#081018"
+}
