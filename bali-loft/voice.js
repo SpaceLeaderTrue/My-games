@@ -344,31 +344,37 @@ function faceGlide(v, target) {
   return view;
 }
 function facePlace(v, cw, ch) {
-  const vw = v.videoWidth || v.naturalWidth || v.width, vh = v.videoHeight || v.naturalHeight || v.height, f = faceGlide(v, faceSpot(v));
+  const vw = v.videoWidth || v.naturalWidth || v.width || 1, vh = v.videoHeight || v.naturalHeight || v.height || 1, f = faceGlide(v, faceSpot(v));
   const cover = Math.max(cw / vw, ch / vh);
   const faceH = Math.max(8, f.h * vh);
-  const headTop = f.y * vh - faceH * 0.55;
-  const chin = f.y * vh + faceH * 0.46;
-  const eyes = f.y * vh - faceH * 0.16;
-  let zoom = cover;
-  if (ch <= cw) {
-    zoom = Math.max(cover, (ch * 0.8) / (faceH * 1.15));
-    if (zoom > cover * 3.2) zoom = cover * 3.2;
-  }
+  const faceW = Math.max(8, f.w * vw);
+  const top = f.y * vh - faceH * 0.82;
+  const bot = f.y * vh + faceH * 0.58;
+  const needH = Math.max(48, bot - top);
+  const needW = Math.max(48, faceW * 1.45);
+  let zoom = Math.min(cw / needW, ch / needH);
+  if (!(zoom > 0)) zoom = cover;
+  if (ch > cw) zoom = Math.min(zoom, cover);
+  else zoom = Math.min(Math.max(zoom, cover), cover * 1.2);
+  if (zoom < cover * 0.52) zoom = cover * 0.52;
   let sw = cw / zoom, sh = ch / zoom;
   if (sw > vw || sh > vh) {
     const fit = Math.min(vw / sw, vh / sh);
     sw *= fit; sh *= fit;
   }
-  let sx = f.x * vw - sw * 0.5, sy = headTop - sh * 0.06;
-  if (chin > sy + sh * 0.72) sy = chin - sh * 0.72;
-  if (eyes < sy + sh * 0.1) sy = eyes - sh * 0.14;
+  let sx = f.x * vw - sw * 0.5;
+  let sy = top - sh * 0.04;
+  if (bot > sy + sh * 0.94) {
+    const shift = Math.min(bot - (sy + sh * 0.94), Math.max(0, top - sy));
+    sy += shift;
+  }
   if (sx < 0) sx = 0;
   if (sy < 0) sy = 0;
   if (sx > vw - sw) sx = Math.max(0, vw - sw);
   if (sy > vh - sh) sy = Math.max(0, vh - sh);
   return { sx, sy, sw, sh };
 }
+
 async function forkVideo(track) {
   const vid = localVid;
   if (!track || !vid) return cloneTrack(track);
@@ -447,9 +453,7 @@ function closeLink(id) {
   stopClone(L.micClone, micTrack());
   stopClone(L.camClone, camTrack());
   try { L.pc.ontrack = null; L.pc.onicecandidate = null; L.pc.close(); } catch {}
-  if (L.audio) {
-    try { L.audio.pause(); L.audio.srcObject = null; L.audio.remove(); } catch {}
-  }
+  if (L.audio) releaseAudioEl(L.audio);
   if (L.video) {
     try { L.video.pause(); L.video.srcObject = null; L.video.remove(); } catch {}
   }
@@ -480,23 +484,66 @@ function kickAudio() {
   }
 }
 
+const audioSlots = [];
+function prepAudioEl(el) {
+  el.autoplay = true;
+  el.playsInline = true;
+  el.setAttribute("playsinline", "");
+  el.setAttribute("webkit-playsinline", "");
+  el.style.cssText = "position:absolute;left:0;top:0;width:8px;height:8px;opacity:0.02;pointer-events:none";
+  return el;
+}
+function unlockAudioPool() {
+  for (let i = audioSlots.length; i < 6; i++) {
+    const el = prepAudioEl(document.createElement("audio"));
+    el.src = SILENT;
+    document.body.appendChild(el);
+    const p = el.play();
+    if (p && p.catch) p.catch(() => {});
+    audioSlots.push(el);
+  }
+  kickAudio();
+}
+function takeAudioEl() {
+  for (const el of audioSlots) {
+    if (!el.dataset.busy) {
+      el.dataset.busy = "1";
+      try { el.pause(); el.removeAttribute("src"); el.srcObject = null; } catch {}
+      return el;
+    }
+  }
+  const el = prepAudioEl(document.createElement("audio"));
+  el.dataset.busy = "1";
+  document.body.appendChild(el);
+  return el;
+}
+function releaseAudioEl(el) {
+  if (!el) return;
+  try { el.pause(); el.srcObject = null; } catch {}
+  if (audioSlots.indexOf(el) >= 0) {
+    el.dataset.busy = "";
+    el.src = SILENT;
+    const p = el.play();
+    if (p && p.catch) p.catch(() => {});
+  } else {
+    try { el.remove(); } catch {}
+  }
+}
 function attachAudio(id, stream) {
   let L = links.get(id);
   if (!L) return;
-  if (!L.audio) {
-    const el = document.createElement("audio");
-    el.autoplay = true;
-    el.playsInline = true;
-    el.setAttribute("playsinline", "");
-    el.setAttribute("webkit-playsinline", "");
-    el.style.cssText = "position:absolute;left:0;top:0;width:8px;height:8px;opacity:0.02;pointer-events:none";
-    document.body.appendChild(el);
-    L.audio = el;
-  }
+  if (!L.audio) L.audio = takeAudioEl();
   if (L.audio.srcObject !== stream) L.audio.srcObject = stream;
   L.audio.volume = volumeFor(id);
   const p = L.audio.play();
   if (p && p.catch) p.catch(() => {});
+}
+function healAudio(id, L) {
+  const tr = audioTr(L.pc);
+  const track = tr && tr.receiver && tr.receiver.track;
+  if (!track || track.readyState === "ended") return;
+  const cur = L.audio && L.audio.srcObject && L.audio.srcObject.getAudioTracks ? L.audio.srcObject.getAudioTracks()[0] : null;
+  if (!L.audio || cur !== track || L.audio.paused) attachAudio(id, new MediaStream([track]));
 }
 
 function volumeFor(id) {
@@ -953,9 +1000,16 @@ function ensureLinks() {
       const ice = L.pc.iceConnectionState;
       const cs = L.pc.connectionState;
       const age = now - (L.offerAt || 0);
-      if ((ice === "checking" || cs === "connecting") && age < 25000) continue;
-      const dead = ice === "failed" || ice === "disconnected" || ice === "closed" || cs === "failed" || cs === "disconnected" || cs === "closed";
-      if (L.offered && age < 8000 && !dead) continue;
+      const flappy = ice === "disconnected" || cs === "disconnected";
+      if (flappy) {
+        if (!L.downAt) L.downAt = now;
+        if (now - L.downAt < 20000) continue;
+      } else L.downAt = 0;
+      if ((ice === "checking" || ice === "new" || cs === "connecting" || cs === "new") && age < 25000) continue;
+      const dead = ice === "failed" || ice === "closed" || cs === "failed" || cs === "closed";
+      const stuck = flappy && L.downAt && now - L.downAt >= 20000;
+      if (!dead && !stuck && L.audio && L.audio.srcObject) continue;
+      if (L.offered && age < 12000 && !dead && !stuck) continue;
       closeLink(id);
     }
     offerTo(id);
@@ -966,10 +1020,15 @@ setInterval(() => {
   publishHi();
   const now = Date.now();
   for (const id of Object.keys(remotes)) {
-    if (now - remotes[id].at > 12000) dropPeer(id);
+    if (now - remotes[id].at > 30000) {
+      const L = links.get(id);
+      if (L && linkUp(L)) continue;
+      dropPeer(id);
+    }
   }
   const mic = micTrack();
   for (const [id, L] of links) {
+    healAudio(id, L);
     if (L.audio) L.audio.volume = volumeFor(id);
     if (L.micClone && mic) L.micClone.enabled = mic.enabled && phase === "live";
     if (L.camClone && camTrack()) L.camClone.enabled = camTrack().enabled && videoPhase === "live";
@@ -1033,6 +1092,7 @@ function useVoyage(stream) {
   kickAudio();
 }
 async function start() {
+  unlockAudioPool();
   if (phase === "joining" || phase === "live" || phase === "muted") return;
   if (window.__voyagePending && !voyageAdopted) {
     phase = "joining";
@@ -1085,7 +1145,7 @@ function holdLocal(stream) {
 }
 
 function toggle() {
-  kickAudio();
+  unlockAudioPool();
   if (phase === "off" || phase === "denied") { start(); return; }
   if (phase === "joining") return;
   const track = micTrack();
@@ -1191,6 +1251,9 @@ document.addEventListener("keydown", kickAudio, true);
 window.addEventListener("pagehide", () => send({ t: "bye", id: myId }));
 
 connectMQTT();
+window.addEventListener("pointerdown", unlockAudioPool, { passive: true });
+window.addEventListener("touchstart", unlockAudioPool, { passive: true });
+window.addEventListener("keydown", unlockAudioPool);
 bindName();
 paint();
 publishRoster();
