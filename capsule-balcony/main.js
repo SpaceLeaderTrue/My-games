@@ -21,14 +21,14 @@
   const Y_UP0 = Y_LO1 + DECK;
   const Y_UP1 = Y_UP0 + CAP_H;
   const SILL_Y = 0.9;
-  const HATCH_Z0 = CAP_Z0 + 0.5;
-  const HATCH_Z1 = CAP_Z0 + 1.12;
-  const LADDER_Z0 = CAP_Z0 + 0.08;
-  const LADDER_Z1 = CAP_Z0 + 0.46;
+  const HATCH_Z0 = CAP_Z0 + 0.14;
+  const HATCH_Z1 = CAP_Z0 + 1.06;
+  const LADDER_Z0 = HATCH_Z0 + 0.06;
+  const LADDER_Z1 = HATCH_Z0 + 0.42;
   const DOOR_X0 = 0.38;
   const DOOR_X1 = 1.16;
   const ROOM_Z = -2.35;
-  const GROUND = -8;
+  const GROUND = -4;
   const R = 0.16;
   const STAND_H = 1.7;
   const CROUCH_H = 1.02;
@@ -390,31 +390,20 @@
   solid(DOOR_X0 - 0.04, DOOR_X0 + 0.02, -0.02, 0.08, 0, 2.3);
   solid(DOOR_X1 - 0.02, DOOR_X1 + 0.04, -0.02, 0.08, 0, 2.3);
   solid(DOOR_X0, DOOR_X1, -0.02, 0.08, 2.24, 2.54);
-  // open door leaf, swung into the room
-  add(0.72, 2.18, 0.04, M.frame, DOOR_X0 - 0.22, 1.09, -0.42, { ry: -0.7 });
 
   // baseboards in the vestibule
   add(CAP_X0, 0.07, 0.02, M.edge, CAP_X0 / 2, 0.06, 0.02);
   add(0.02, 0.07, GLASS_Z, M.edge, 0.03, 0.06, GLASS_Z / 2);
 
-  // --- capsules ---
-  // front shell around the two mouths
-  add(SHELL, Y_LO1, LADDER_Z1 - CAP_Z0, M.shell, CAP_X0 + SHELL / 2, Y_LO1 / 2, CAP_Z0 + (LADDER_Z1 - CAP_Z0) / 2);
-  add(SHELL, HOLE_TOP, 0.06, M.shell, CAP_X0 + SHELL / 2, HOLE_TOP / 2, HATCH_Z0 - 0.03);
-  add(SHELL, Y_LO1, CAP_Z1 - HATCH_Z1, M.shell, CAP_X0 + SHELL / 2, Y_LO1 / 2, (HATCH_Z1 + CAP_Z1) / 2);
-  add(SHELL, Y_LO1 - HOLE_TOP, HATCH_Z1 - HATCH_Z0, M.shell, CAP_X0 + SHELL / 2, (HOLE_TOP + Y_LO1) / 2, (HATCH_Z0 + HATCH_Z1) / 2);
-  // oak mouth lining, lower
-  add(0.02, HOLE_TOP, 0.025, M.edge, CAP_X1 + 0.01, HOLE_TOP / 2, HATCH_Z0);
-  add(0.02, HOLE_TOP, 0.025, M.edge, CAP_X1 + 0.01, HOLE_TOP / 2, HATCH_Z1);
-  add(0.02, 0.025, HATCH_Z1 - HATCH_Z0, M.edge, CAP_X1 + 0.01, HOLE_TOP, (HATCH_Z0 + HATCH_Z1) / 2);
-
-  // upper front shell
-  const upHoleTop = Y_UP0 + 0.84;
-  add(SHELL, Y_UP0 - Y_LO1, CAP_W + SHELL, M.shell, CAP_X0 + SHELL / 2, (Y_LO1 + Y_UP0) / 2, CAP_Z0 + CAP_W / 2);
-  add(SHELL, upHoleTop - Y_UP0, CAP_Z0 + LADDER_Z0 - CAP_Z0, M.shell, CAP_X0 + SHELL / 2, (Y_UP0 + upHoleTop) / 2, CAP_Z0 + 0.04);
-  add(SHELL, upHoleTop - Y_UP0, CAP_Z1 - LADDER_Z1, M.shell, CAP_X0 + SHELL / 2, (Y_UP0 + upHoleTop) / 2, (LADDER_Z1 + CAP_Z1) / 2);
-  add(SHELL, Y_UP1 - upHoleTop, CAP_W, M.shell, CAP_X0 + SHELL / 2, (upHoleTop + Y_UP1) / 2, (CAP_Z0 + CAP_Z1) / 2);
-  add(SHELL, 0.04, CAP_W + SHELL, M.shell, CAP_X0 + SHELL / 2, Y_UP1 + 0.02, CAP_Z0 + CAP_W / 2);
+  // --- capsules: two wide mouths, one above the other ---
+  const upHoleTop = Y_UP1 - 0.08;
+  add(SHELL, Y_UP1 + 0.04, HATCH_Z0 - CAP_Z0, M.shell, CAP_X0 + SHELL / 2, (Y_UP1 + 0.04) / 2, (CAP_Z0 + HATCH_Z0) / 2);
+  add(SHELL, Y_UP1 + 0.04, CAP_Z1 - HATCH_Z1, M.shell, CAP_X0 + SHELL / 2, (Y_UP1 + 0.04) / 2, (HATCH_Z1 + CAP_Z1) / 2);
+  add(SHELL, HOLE_TOP, 0.025, M.edge, CAP_X0 + 0.01, HOLE_TOP / 2, HATCH_Z0);
+  add(SHELL, HOLE_TOP, 0.025, M.edge, CAP_X0 + 0.01, HOLE_TOP / 2, HATCH_Z1);
+  add(SHELL, 0.045, HATCH_Z1 - HATCH_Z0, M.shell, CAP_X0 + SHELL / 2, HOLE_TOP + 0.02, (HATCH_Z0 + HATCH_Z1) / 2);
+  add(SHELL, 0.05, HATCH_Z1 - HATCH_Z0, M.edge, CAP_X0 + 0.015, Y_UP0, (HATCH_Z0 + HATCH_Z1) / 2);
+  add(SHELL, Y_UP1 - upHoleTop, HATCH_Z1 - HATCH_Z0, M.shell, CAP_X0 + SHELL / 2, (upHoleTop + Y_UP1) / 2, (HATCH_Z0 + HATCH_Z1) / 2);
 
   // room-side wall of both capsules
   add(CAP_L, Y_UP1 - Y0 + 0.04, SHELL, M.shell, (CAP_X1 + CAP_X2) / 2, (Y0 + Y_UP1) / 2, CAP_Z0 - SHELL / 2);
@@ -427,13 +416,10 @@
   // roof
   add(CAP_L + SHELL, 0.035, CAP_W + SHELL, M.shell, (CAP_X0 + CAP_X2) / 2 + 0.01, Y_UP1 + 0.02, (CAP_Z0 + CAP_Z1) / 2);
 
-  solid(CAP_X0, CAP_X1, CAP_Z0, LADDER_Z1, 0, Y_LO1);
-  solid(CAP_X0, CAP_X1, HATCH_Z0 - 0.02, HATCH_Z0 + 0.02, 0, HOLE_TOP);
-  solid(CAP_X0, CAP_X1, HATCH_Z1, CAP_Z1 + 0.02, 0, Y_LO1);
+  solid(CAP_X0, CAP_X1, CAP_Z0, HATCH_Z0, 0, Y_UP1);
+  solid(CAP_X0, CAP_X1, HATCH_Z1, CAP_Z1 + 0.02, 0, Y_UP1);
   solid(CAP_X0, CAP_X1, HATCH_Z0, HATCH_Z1, HOLE_TOP, Y_UP0);
-  solid(CAP_X0, CAP_X1, CAP_Z0, LADDER_Z0, Y_UP0, upHoleTop);
-  solid(CAP_X0, CAP_X1, LADDER_Z1, CAP_Z1 + 0.02, Y_UP0, Y_UP1);
-  solid(CAP_X0, CAP_X1, CAP_Z0, CAP_Z1, upHoleTop, Y_UP1 + 0.05);
+  solid(CAP_X0, CAP_X1, HATCH_Z0, HATCH_Z1, upHoleTop, Y_UP1 + 0.06);
   solid(CAP_X1, CAP_X2, CAP_Z0 - SHELL, CAP_Z0, 0, Y_UP1);
   solid(CAP_X2, CAP_X2 + SHELL, CAP_Z0 - SHELL, CAP_Z1 + SHELL, 0, Y_UP1);
   solid(CAP_X1, CAP_X2, CAP_Z1, CAP_Z1 + SHELL, 0, Y_UP0);
@@ -449,13 +435,15 @@
   add(0.42, 0.1, 0.62, M.bedHi, CAP_X2 - 0.38, Y0 + 0.15, (CAP_Z0 + CAP_Z1) / 2 + 0.02);
   add(0.7, 0.06, 0.42, M.edge, CAP_X1 + 0.7, Y0 + 0.14, CAP_Z0 + 0.38);
   // vent and reading lamp at the blind end
-  add(0.02, 0.08, 0.28, M.black, CAP_X2 - 0.04, Y0 + 0.72, CAP_Z1 - 0.28);
-  add(0.12, 0.05, 0.12, M.lamp, CAP_X2 - 0.12, Y0 + 0.78, CAP_Z0 + 0.22);
-  const lowerLamp = new THREE.PointLight(0xffb27a, 1.15, 2.6, 2);
-  lowerLamp.position.set(CAP_X2 - 0.2, Y0 + 0.74, CAP_Z0 + 0.28);
+  add(0.16, 0.02, 0.28, M.edge, CAP_X2 - 0.12, Y0 + 0.42, (CAP_Z0 + CAP_Z1) / 2);
+  add(0.08, 0.08, 0.08, M.lamp, CAP_X2 - 0.14, Y0 + 0.5, (CAP_Z0 + CAP_Z1) / 2);
+  const lowerLamp = new THREE.PointLight(0xffb27a, 2.4, 3.2, 2);
+  lowerLamp.position.set(CAP_X2 - 0.35, Y0 + 0.55, (CAP_Z0 + CAP_Z1) / 2);
   scene.add(lowerLamp);
-  // curtain, pulled to the room side of the mouth
-  add(0.02, 0.78, 0.22, M.curtain, CAP_X1 + 0.03, 0.5, HATCH_Z0 + 0.12, { shadow: false });
+  const mouthLamp = new THREE.PointLight(0xffc09a, 0.7, 2.4, 2);
+  mouthLamp.position.set(CAP_X1 + 0.4, Y0 + 0.42, (HATCH_Z0 + HATCH_Z1) / 2);
+  scene.add(mouthLamp);
+  add(0.02, 0.72, 0.18, M.curtain, CAP_X1 + 0.04, 0.48, HATCH_Z0 + 0.1, { shadow: false });
 
   // upper interior
   add(CAP_L - 0.02, CAP_H - 0.04, 0.02, M.linen, (CAP_X1 + CAP_X2) / 2, Y_UP0 + CAP_H / 2, CAP_Z0 + 0.02, { shadow: false });
@@ -472,8 +460,8 @@
   const py1 = Y_UP1 - 0.06;
   windowRun(px0, px1, py0, py1, CAP_Z1 - 0.01, 1, 1, 0.045);
 
-  // plaque on the solid front, beside the ladder
-  add(0.02, 0.42, 0.36, M.plaque, CAP_X0 - 0.01, 1.28, CAP_Z0 + 0.28);
+  // plaque on the pink end wall, next to the mirror
+  add(0.02, 0.46, 0.4, M.plaque, 0.08, 1.15, 0.28);
 
   // numbers
   function numberPlate(text, x, y, z) {
@@ -492,8 +480,8 @@
     t.colorSpace = THREE.SRGBColorSpace;
     add(0.012, 0.1, 0.16, mat(0xffffff, { map: t, roughness: 0.5 }), x, y, z);
   }
-  numberPlate("01", CAP_X0 - 0.005, 0.62, (HATCH_Z0 + HATCH_Z1) / 2);
-  numberPlate("02", CAP_X0 - 0.005, Y_UP0 + 0.42, (LADDER_Z0 + LADDER_Z1) / 2);
+  numberPlate("01", CAP_X0 - 0.02, HOLE_TOP + 0.06, (HATCH_Z0 + HATCH_Z1) / 2);
+  numberPlate("02", CAP_X0 - 0.02, upHoleTop + 0.05, (HATCH_Z0 + HATCH_Z1) / 2);
 
   // ladder
   const ladderX = CAP_X0 - 0.22;
@@ -546,13 +534,6 @@
   solid(-0.4, BAL_L + 0.4, ROOM_Z - 0.1, ROOM_Z + 0.06, 0, BAL_H);
   solid(-0.2, 0.02, ROOM_Z, 0.05, 0, BAL_H);
   solid(BAL_L - 0.02, BAL_L + 0.3, ROOM_Z, 0.05, 0, BAL_H);
-  // desk lamp on the room sill, as in the photo
-  add(0.16, 0.03, 0.16, M.shade, 1.85, SILL_Y + 0.02, -0.28);
-  add(0.03, 0.28, 0.03, M.metal, 1.7, SILL_Y + 0.18, -0.28);
-  const shade = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.1, 16, 1, true), M.shade);
-  shade.position.set(1.55, SILL_Y + 0.36, -0.28);
-  addMesh(shade);
-  add(0.08, 0.06, 0.08, M.black, 2.15, SILL_Y + 0.05, -0.32);
   const roomFill = new THREE.PointLight(0xfff1dd, 0.35, 5, 2);
   roomFill.position.set(1.6, 1.8, -1.1);
   scene.add(roomFill);
@@ -584,24 +565,21 @@
     add(w, h, d, M.city(map), x, GROUND + h / 2, z, { shadow: false });
     add(w + 0.3, 0.4, d + 0.3, M.roof, x, GROUND + h + 0.2, z, { shadow: false });
   }
-  // the long panel house straight out the window
-  tower(2.2, 22, 26, 11, 30, texSlab);
-  // close high-rise at the capsule end of the view
-  tower(6.1, 6.4, 5.2, 6.2, 62, texTower);
-  // yellow striped house to the side, as in the center pane of the photo
-  tower(-3.2, 18, 9, 8, 24, texYellow);
-  tower(12, 34, 16, 10, 28, texFar);
-  tower(-8, 30, 14, 9, 20, texFar);
-  // low roofs under the trees
-  tower(0.4, 12.5, 9, 6, 8, texLow);
+  // panel house straight out of the panorama, roof under the sky
+  tower(3.15, 20, 24, 11, 14, texSlab);
+  // close high-rise off to the side, the way it sits in the wardrobe-end photo
+  tower(8.2, 9.5, 4.4, 5.5, 42, texTower);
+  tower(-2.4, 17, 8, 7, 16, texYellow);
+  tower(13, 34, 16, 10, 20, texFar);
+  tower(-9, 32, 12, 8, 16, texFar);
 
   const leafGeo = new THREE.IcosahedronGeometry(1, 1);
   const trunkGeo = new THREE.CylinderGeometry(0.08, 0.12, 1.3, 5);
   const leafMats = [M.leafA, M.leafB, M.leafC];
   const treePos = [
-    [-2.2, 9.5, 1.1], [0.6, 8.8, 1.3], [2.4, 10.2, 0.9], [4.2, 9.2, 1.15],
-    [-4.5, 11, 1.4], [7.2, 10.5, 1], [1.2, 13, 1.5], [5.5, 12.4, 1.2],
-    [-1, 14, 0.8], [8.8, 13.5, 1.3], [3.4, 7.6, 0.85]
+    [1.2, 8.4, 1.8], [3.1, 7.6, 1.7], [4.8, 8.8, 1.6], [0.1, 9.4, 1.5],
+    [6.2, 8.2, 1.45], [-1.6, 10, 1.5], [7.6, 11, 1.3], [2.2, 11.5, 1.4],
+    [5.0, 12.2, 1.2], [-3.4, 12, 1.3], [9.2, 13, 1.2]
   ];
   for (let i = 0; i < treePos.length; i++) {
     const p = treePos[i];
@@ -640,7 +618,7 @@
   scene.add(sun);
 
   // --- body ---
-  const player = { x: 1.05, z: 0.58, yaw: -0.85, pitch: -0.04 };
+  const player = { x: 0.72, z: 0.46, yaw: -1.76, pitch: -0.22 };
   let crouched = false;
   let mode = "walk";
   let berth = null;
@@ -667,17 +645,17 @@
   function berthPose(name) {
     if (name === "lower") {
       return poseFromLook(
-        CAP_X2 - 0.85,
-        Y0 + 0.3,
-        (CAP_Z0 + CAP_Z1) / 2,
-        { x: CAP_X1 + 0.15, y: Y0 + 0.48, z: (CAP_Z0 + CAP_Z1) / 2 }
+        CAP_X1 + 0.78,
+        Y0 + 0.36,
+        (HATCH_Z0 + HATCH_Z1) / 2,
+        { x: CAP_X2 - 0.2, y: Y0 + 0.58, z: (CAP_Z0 + CAP_Z1) / 2 }
       );
     }
     return poseFromLook(
-      (CAP_X1 + CAP_X2) / 2 - 0.05,
-      Y_UP0 + 0.32,
-      CAP_Z0 + 0.42,
-      { x: (CAP_X1 + CAP_X2) / 2 + 0.15, y: Y_UP0 + 1.05, z: CAP_Z1 + 6 }
+      (CAP_X1 + CAP_X2) / 2,
+      Y_UP0 + 0.46,
+      CAP_Z0 + 0.5,
+      { x: (CAP_X1 + CAP_X2) / 2, y: 4.2, z: 20 }
     );
   }
   function standPose(name) {
@@ -888,10 +866,10 @@
   }
 
   const shots = {
-    door: () => poseFromLook(1.35, 1.55, -1.25, { x: 2.4, y: 1.35, z: 1.2 }),
-    hall: () => poseFromLook(1.05, 1.58, 0.5, { x: 2.5, y: 1.25, z: 0.85 }),
-    window: () => poseFromLook(1.15, 1.55, 0.62, { x: 1.15, y: 1.7, z: 8 }),
-    front: () => poseFromLook(CAP_X0 - 0.95, 1.35, 0.62, { x: CAP_X0 + 0.2, y: 1.15, z: 0.7 }),
+    door: () => poseFromLook(1.55, 1.48, -1.05, { x: 2.55, y: 1.15, z: 2.2 }),
+    hall: () => poseFromLook(0.72, 1.52, 0.46, { x: 2.35, y: 1.05, z: 0.78 }),
+    window: () => poseFromLook(1.05, 1.52, 0.55, { x: 3.1, y: 3.4, z: 18 }),
+    front: () => poseFromLook(1.2, 1.12, 0.64, { x: 2.45, y: 1.0, z: 0.7 }),
     lower: () => berthPose("lower"),
     upper: () => berthPose("upper")
   };
@@ -921,7 +899,7 @@
     good = check("upper floor is above lower ceiling", Y_UP0 > Y_LO1 - 0.001 && Math.abs(Y_UP0 - Y_LO1 - DECK) < 1e-9) && good;
     good = check("stack fits under the ceiling", Y_UP1 + 0.04 < BAL_H) && good;
     good = check("panorama is only on the upper city wall", py0 >= Y_UP0 - 0.001 && py1 <= Y_UP1 + 0.001) && good;
-    good = check("start is free", !hits(1.05, 0.58, STAND_H)) && good;
+    good = check("start is free", !hits(0.72, 0.46, STAND_H)) && good;
     const x = 1.05;
     const z = 0.58;
     good = check("mirror wall blocks", hits(0.02, z, STAND_H)) && good;
