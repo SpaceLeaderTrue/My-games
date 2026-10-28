@@ -1,0 +1,9 @@
+{
+  "name": "Капсулы — балкон",
+  "short_name": "Капсулы",
+  "display": "fullscreen",
+  "orientation": "any",
+  "start_url": "./",
+  "background_color": "#c5ccd1",
+  "theme_color": "#1b1916"
+}
