@@ -70,7 +70,7 @@
       }
       .prompt.on { opacity: 1; }
       .enter {
-        inset: 0; display: grid; place-items: center;
+        inset: 0; z-index: 30; display: grid; place-items: center;
         background: rgba(20, 18, 16, 0.28); pointer-events: auto; cursor: pointer;
       }
       .enter-card {
@@ -87,14 +87,21 @@
       body.playing .enter { display: none; }
       body.shot .enter { display: none; }
       .mobile { display: none; }
+      body:not(.playing) .mobile { display: none !important; }
       @media (pointer: coarse) {
         .cross { display: none; }
-        .mobile { display: block; }
-        .hint-desktop { display: none; }
+        body.playing .mobile { display: block; }
+        .hint-desktop, .hud-bottom, .spec { display: none; }
+        .prompt { bottom: auto; top: 92px; white-space: normal; text-align: center; max-width: calc(100% - 36px); }
       }
-      .joy-zone, .look-zone { position: fixed; bottom: 0; top: 0; pointer-events: auto; }
-      .joy-zone { left: 0; width: 46%; }
-      .look-zone { right: 0; width: 54%; }
+      .joy-zone, .look-zone {
+        position: fixed; bottom: 0; top: 0; z-index: 2; pointer-events: auto; touch-action: none;
+      }
+      .joy-zone { left: 0; width: 44%; }
+      .look-zone { left: 44%; right: 0; width: auto; }
+      body.in-bed .joy-zone { pointer-events: none; }
+      body.in-bed .joy-base { opacity: 0; }
+      body.in-bed .look-zone { left: 0; }
       .joy-base {
         position: absolute; left: max(28px, env(safe-area-inset-left));
         bottom: max(28px, env(safe-area-inset-bottom));
@@ -113,8 +120,11 @@
       }
       .actions button {
         border: 1px solid var(--line); background: var(--paper); color: var(--ink);
-        border-radius: 999px; padding: 10px 14px; font: inherit; font-size: 13px;
+        border-radius: 999px; min-width: 104px; min-height: 48px; padding: 12px 16px;
+        font: inherit; font-size: 15px; touch-action: manipulation;
       }
+      .actions button.idle { opacity: 0.38; }
+      .actions button.on { background: var(--ink); color: #f6f1ea; }
       #selftest {
         position: fixed; inset: auto 12px 12px 12px; z-index: 9;
         background: #fff; color: #111; padding: 12px; font-size: 12px; white-space: pre-wrap;
@@ -127,7 +137,7 @@
     <header class="hud-top">
       <div class="card">
         <div class="brand">КАПСУЛЫ</div>
-        <div class="sub">балкон · две спальни по 3 м³</div>
+        <div class="sub" id="status-line">балкон · две спальни по 3 м³</div>
       </div>
       <div class="card spec">
         <div><b>01 нижняя</b> — 3 м³, без окон</div>
@@ -135,15 +145,15 @@
       </div>
     </header>
     <footer class="hud-bottom">
-      <div class="card hint hint-desktop"><b>WASD</b> ходить · <b>мышь</b> смотреть · <b>C</b> пригнуться · <b>E</b> лечь или встать</div>
+      <div class="card hint hint-desktop"><b>WASD</b> ходить · <b>мышь</b> смотреть · <b>C</b> пригнуться · <b>E</b> нижняя · <b>R</b> верхняя</div>
       <div class="card where" id="where">тамбур</div>
     </footer>
     <div class="prompt" id="prompt"></div>
     <button class="enter" id="enter" type="button">
       <div class="enter-card">
         <h1>Балкон доделан</h1>
-        <p>Шкаф и чемодан ушли. На их месте две капсулы: нижняя глухая, верхняя с панорамным окном на многоэтажный дом и город. Тамбур — розовая стена, подоконник и зеркало.</p>
-        <div class="go">Нажмите, чтобы войти</div>
+        <p>Шкаф и чемодан ушли. На их месте две капсулы: нижняя глухая, верхняя с панорамным окном на дом. На телефоне левая часть экрана — ходьба, правая — взгляд. Подойдите к капсулам: появятся «нижняя» и «верхняя».</p>
+        <div class="go">Войти</div>
       </div>
     </button>
     <div class="mobile" id="mobile">
@@ -152,7 +162,9 @@
       </div>
       <div class="look-zone" id="look-zone" aria-label="Взгляд"></div>
       <div class="actions">
-        <button type="button" id="btn-use">лечь</button>
+        <button type="button" id="btn-lower" hidden>нижняя</button>
+        <button type="button" id="btn-upper" hidden>верхняя</button>
+        <button type="button" id="btn-use" hidden>встать</button>
         <button type="button" id="btn-crouch">пригнуться</button>
       </div>
     </div>

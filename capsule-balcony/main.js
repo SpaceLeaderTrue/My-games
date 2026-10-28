@@ -681,13 +681,12 @@
       pitch: player.pitch
     };
     to = Object.assign({}, to, { yaw: shortest(from.yaw, to.yaw) });
-    tween = { from, to, t: 0, nextMode, nextBerth };
+    tween = { from, to, t0: performance.now(), nextMode, nextBerth };
     mode = "tween";
   }
   function enterBerth(name) {
     returnPose = {
       x: player.x,
-      y: eyeHeight(),
       z: player.z,
       yaw: player.yaw,
       pitch: player.pitch
@@ -697,44 +696,70 @@
       returnPose.x = safe.x;
       returnPose.z = safe.z;
     }
+    if (name === "lower") crouched = true;
     startTween(berthPose(name), "berth", name);
   }
   function exitBerth() {
-    crouched = false;
-    startTween(returnPose, "walk", null);
-  }
-  function nearLadder() {
-    const dx = player.x - (ladderX - 0.05);
-    const dz = player.z - (LADDER_Z0 + LADDER_Z1) / 2;
-    return dx * dx + dz * dz < 0.42 * 0.42 && Math.abs(player.z - (LADDER_Z0 + LADDER_Z1) / 2) < 0.45;
+    const canStand = !hits(returnPose.x, returnPose.z, STAND_H);
+    crouched = !canStand;
+    startTween(
+      {
+        x: returnPose.x,
+        y: canStand ? 1.58 : 0.86,
+        z: returnPose.z,
+        yaw: returnPose.yaw,
+        pitch: returnPose.pitch
+      },
+      "walk",
+      null
+    );
   }
   function inLower() {
     return player.x > CAP_X1 - 0.02 && player.x < CAP_X2 - 0.05 && player.z > CAP_Z0 + 0.02 && player.z < CAP_Z1 - 0.02;
   }
-  function nearHatch() {
-    const dx = player.x - (CAP_X0 - 0.2);
-    const dz = player.z - (HATCH_Z0 + HATCH_Z1) / 2;
-    return dx * dx + dz * dz < 0.55 * 0.55;
+  // Ladder and sill leave one open patch of floor. Both berths are offered there.
+  function nearStack() {
+    return player.x > 1.12 && player.x < 1.66 && player.z > 0.18 && player.z < 0.82;
   }
-  function useAction() {
+  function actionTarget() {
+    if (mode === "berth") return "exit";
+    if (mode !== "walk") return "";
+    if (inLower()) return "lower";
+    if (nearStack()) return "both";
+    return "";
+  }
+  let hint = "";
+  let hintUntil = 0;
+  function showHint(text) {
+    hint = text;
+    hintUntil = performance.now() + 1800;
+  }
+  function useAction(which) {
     if (mode === "tween") return;
     if (mode === "berth") {
       exitBerth();
       return;
     }
-    if (inLower() || nearHatch()) {
-      if (!crouched && nearHatch() && !inLower()) crouched = true;
+    if (which === "upper") {
+      if (nearStack() && !inLower()) {
+        enterBerth("upper");
+        return;
+      }
+      showHint(inLower() ? "Сначала выйдите в тамбур" : "Подойдите ближе к капсулам");
+      return;
+    }
+    if (inLower() || nearStack()) {
       enterBerth("lower");
       return;
     }
-    if (nearLadder()) enterBerth("upper");
+    showHint("Подойдите ближе к капсулам");
   }
   function currentPrompt() {
-    if (mode === "berth") return "E — встать";
+    if (hint && performance.now() < hintUntil) return hint;
+    if (mode === "berth") return "Встать";
     if (mode !== "walk") return "";
-    if (inLower()) return "E — лечь. Здесь нет окна";
-    if (nearHatch()) return "E — нижняя капсула, 3 м³, без окон";
-    if (nearLadder()) return "E — верхняя капсула, 3 м³, панорама";
+    if (inLower()) return "Лечь в нижнюю · без окон";
+    if (nearStack()) return "Нижняя без окон · верхняя на дом";
     return "";
   }
   function placeLabel() {
@@ -766,7 +791,8 @@
       crouched = !crouched;
       if (!crouched && hits(player.x, player.z, STAND_H)) crouched = true;
     }
-    if (e.code === "KeyE") useAction();
+    if (e.code === "KeyE") useAction(mode === "berth" ? "exit" : "lower");
+    if (e.code === "KeyR") useAction("upper");
   });
   window.addEventListener("keyup", (e) => {
     const dir = codeMap[e.code];
@@ -799,45 +825,72 @@
 
   const joyZone = document.getElementById("joy-zone");
   const joyKnob = document.getElementById("joy-knob");
+  const joyBase = document.getElementById("joy-base");
   const lookZone = document.getElementById("look-zone");
+  const lowerBtn = document.getElementById("btn-lower");
+  const upperBtn = document.getElementById("btn-upper");
+  const useBtn = document.getElementById("btn-use");
+  const crouchBtn = document.getElementById("btn-crouch");
+  let joyOrigin = null;
   let lookId = null;
   let lookX = 0;
   let lookY = 0;
+  function playingNow() {
+    return document.body.classList.contains("playing");
+  }
   joyZone.addEventListener("pointerdown", (e) => {
+    if (!playingNow() || mode !== "walk") return;
     joy.active = true;
     joy.id = e.pointerId;
+    joyOrigin = { x: e.clientX, y: e.clientY };
+    joyBase.style.left = (e.clientX - 58) + "px";
+    joyBase.style.top = (e.clientY - 58) + "px";
+    joyBase.style.bottom = "auto";
     joyZone.setPointerCapture(e.pointerId);
     moveJoy(e);
   });
   function moveJoy(e) {
-    const base = document.getElementById("joy-base").getBoundingClientRect();
-    const cx = base.left + base.width / 2;
-    const cy = base.top + base.height / 2;
-    let dx = e.clientX - cx;
-    let dy = e.clientY - cy;
-    const max = 42;
-    const len = Math.hypot(dx, dy) || 1;
+    if (!joyOrigin) return;
+    const max = 46;
+    const dead = 10;
+    let dx = e.clientX - joyOrigin.x;
+    let dy = e.clientY - joyOrigin.y;
+    const len = Math.hypot(dx, dy);
     if (len > max) {
       dx *= max / len;
       dy *= max / len;
     }
+    joyKnob.style.transform = "translate(" + dx + "px," + dy + "px)";
+    if (len < dead) {
+      joy.x = 0;
+      joy.y = 0;
+      return;
+    }
     joy.x = dx / max;
     joy.y = dy / max;
-    joyKnob.style.transform = "translate(" + dx + "px," + dy + "px)";
   }
   joyZone.addEventListener("pointermove", (e) => {
     if (joy.active && e.pointerId === joy.id) moveJoy(e);
   });
   function endJoy(e) {
-    if (e.pointerId !== joy.id) return;
+    if (!joy.active) return;
+    if (e && e.pointerId != null && joy.id != null && e.pointerId !== joy.id) return;
     joy.active = false;
+    joy.id = null;
     joy.x = 0;
     joy.y = 0;
+    joyOrigin = null;
     joyKnob.style.transform = "translate(0,0)";
+    joyBase.style.left = "";
+    joyBase.style.top = "";
+    joyBase.style.bottom = "";
   }
   joyZone.addEventListener("pointerup", endJoy);
   joyZone.addEventListener("pointercancel", endJoy);
+  window.addEventListener("pointerup", endJoy);
+  window.addEventListener("pointercancel", endJoy);
   lookZone.addEventListener("pointerdown", (e) => {
+    if (!playingNow()) return;
     lookId = e.pointerId;
     lookX = e.clientX;
     lookY = e.clientY;
@@ -845,14 +898,42 @@
   });
   lookZone.addEventListener("pointermove", (e) => {
     if (e.pointerId !== lookId) return;
-    onLook(e.clientX - lookX, e.clientY - lookY);
+    const dx = e.clientX - lookX;
+    const dy = e.clientY - lookY;
     lookX = e.clientX;
     lookY = e.clientY;
+    const span = Math.max(140, window.innerWidth * 0.42);
+    const mult = 1.7 / (0.0022 * span);
+    onLook(dx * mult, dy * mult);
   });
-  lookZone.addEventListener("pointerup", () => { lookId = null; });
-  document.getElementById("btn-use").addEventListener("click", (e) => { e.stopPropagation(); useAction(); });
-  document.getElementById("btn-crouch").addEventListener("click", (e) => {
-    e.stopPropagation();
+  function endLook(e) {
+    if (e && e.pointerId != null && lookId != null && e.pointerId !== lookId) return;
+    lookId = null;
+  }
+  lookZone.addEventListener("pointerup", endLook);
+  lookZone.addEventListener("pointercancel", endLook);
+  function bindTap(el, fn) {
+    let lastTap = 0;
+    const run = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const t = performance.now();
+      if (t - lastTap < 350) return;
+      lastTap = t;
+      fn();
+    };
+    el.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+    });
+    el.addEventListener("pointerup", run);
+    el.addEventListener("click", run);
+  }
+  bindTap(lowerBtn, () => useAction("lower"));
+  bindTap(upperBtn, () => useAction("upper"));
+  bindTap(useBtn, () => useAction("exit"));
+  bindTap(crouchBtn, () => {
+    if (mode !== "walk") return;
     crouched = !crouched;
     if (!crouched && hits(player.x, player.z, STAND_H)) crouched = true;
   });
@@ -913,6 +994,13 @@
     good = check("crouch fits inside the lower capsule", !hits(insideX, insideZ, CROUCH_H)) && good;
     good = check("cannot stand inside the lower capsule", hits(insideX, insideZ, STAND_H)) && good;
     good = check("lower city side is solid", hits(insideX, CAP_Z1 + 0.01, CROUCH_H)) && good;
+    player.x = 1.4;
+    player.z = 0.5;
+    good = check("approach in front of the stack is open", !hits(1.4, 0.5, STAND_H)) && good;
+    good = check("both berths are offered in that approach", nearStack()) && good;
+    player.x = 0.72;
+    player.z = 0.46;
+    good = check("the hall does not offer a berth", !nearStack()) && good;
     document.title = good ? "SELFTEST_OK" : "SELFTEST_FAIL";
     const pre = document.createElement("pre");
     pre.id = "selftest";
@@ -921,6 +1009,23 @@
     document.body.classList.add("shot", "playing");
   }
   if (selfTest) runSelfTest();
+  if (params.has("probe")) {
+    window.__capsule = () => ({
+      x: player.x,
+      z: player.z,
+      yaw: player.yaw,
+      pitch: player.pitch,
+      crouched,
+      mode,
+      berth,
+      camY: camera.position.y,
+      prompt: currentPrompt(),
+      target: actionTarget(),
+      near: nearStack(),
+      playing: document.body.classList.contains("playing"),
+      joy: joy.active ? joy.x : null
+    });
+  }
 
   let last = performance.now();
   function frame(now) {
@@ -960,8 +1065,8 @@
       camera.rotation.y = player.yaw;
       camera.rotation.x = player.pitch;
     } else if (mode === "tween") {
-      tween.t += dt / 0.7;
-      const k = tween.t >= 1 ? 1 : tween.t * tween.t * (3 - 2 * tween.t);
+      const t = Math.min(1, (now - tween.t0) / 700);
+      const k = t * t * (3 - 2 * t);
       const a = tween.from;
       const b = tween.to;
       camera.position.set(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, a.z + (b.z - a.z) * k);
@@ -969,7 +1074,7 @@
       player.pitch = a.pitch + (b.pitch - a.pitch) * k;
       camera.rotation.y = player.yaw;
       camera.rotation.x = player.pitch;
-      if (tween.t >= 1) {
+      if (t >= 1) {
         mode = tween.nextMode;
         berth = tween.nextBerth;
         if (mode === "walk") {
@@ -991,8 +1096,19 @@
     promptEl.textContent = prompt;
     promptEl.classList.toggle("on", !!prompt && document.body.classList.contains("playing"));
     whereEl.textContent = placeLabel();
-    const useBtn = document.getElementById("btn-use");
-    if (useBtn) useBtn.textContent = mode === "berth" ? "встать" : "лечь";
+    const statusLine = document.getElementById("status-line");
+    if (statusLine) statusLine.textContent = "2 × 3 м³ · " + placeLabel();
+    const inBed = mode === "berth";
+    document.body.classList.toggle("in-bed", inBed);
+    const atStack = mode === "walk" && (nearStack() || inLower());
+    lowerBtn.hidden = !atStack;
+    upperBtn.hidden = !(mode === "walk" && nearStack() && !inLower());
+    useBtn.hidden = !inBed;
+    lowerBtn.textContent = inLower() ? "лечь" : "нижняя";
+    crouchBtn.hidden = mode !== "walk";
+    crouchBtn.classList.toggle("on", crouched && mode === "walk");
+    crouchBtn.textContent = crouched && mode === "walk" ? "в рост" : "пригнуться";
+    crouchBtn.classList.toggle("idle", mode !== "walk");
 
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
