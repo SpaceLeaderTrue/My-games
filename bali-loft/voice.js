@@ -13,10 +13,7 @@ const BROKERS = [
 const ICE = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun.cloudflare.com:3478" },
-  { urls: ["turn:eu-0.turn.peerjs.com:3478", "turn:us-0.turn.peerjs.com:3478"], username: "peerjs", credential: "peerjsp" },
-  { urls: "turn:global.relay.metered.ca:80", username: "e8dd65c92f6c8e23928f4b15", credential: "K2aD1H3q0v5c8s1e" },
-  { urls: "turn:global.relay.metered.ca:80?transport=tcp", username: "e8dd65c92f6c8e23928f4b15", credential: "K2aD1H3q0v5c8s1e" },
-  { urls: "turn:global.relay.metered.ca:443", username: "e8dd65c92f6c8e23928f4b15", credential: "K2aD1H3q0v5c8s1e" },
+  { urls: "stun:stun.relay.metered.ca:80" },
   { urls: "turns:global.relay.metered.ca:443?transport=tcp", username: "e8dd65c92f6c8e23928f4b15", credential: "K2aD1H3q0v5c8s1e" },
 ];
 const NAMES = ["Алекс", "Мира", "Ника", "Лео", "Соня", "Марк", "Кира", "Тима", "Яна", "Глеб", "Нина", "Олег"];
@@ -86,6 +83,8 @@ let ws = null;
 const links = new Map();
 const remotes = {};
 const pendingIce = new Map();
+const relayHeard = new Map();
+const wantAt = new Map();
 const sockets = new Map();
 const roomStarted = Date.now();
 window.__remotes = remotes;
@@ -117,8 +116,14 @@ function remoteCount() {
 }
 function heardCount() {
   let n = 0;
-  for (const L of links.values()) {
-    if (L.audio && (L.pc.connectionState === "connected" || L.pc.iceConnectionState === "connected" || L.pc.iceConnectionState === "completed")) n++;
+  const seen = new Set();
+  for (const [id, L] of links) {
+    if (L.audio && linkUp(L)) { n++; seen.add(id); }
+  }
+  const now = Date.now();
+  for (const [id, t] of relayHeard) {
+    if (now - t > 4000) { relayHeard.delete(id); continue; }
+    if (!seen.has(id) && remotes[id]) n++;
   }
   return n;
 }
@@ -224,13 +229,14 @@ function readRL(buf, offset) {
 
 let msgSeq = 0;
 const seenMid = new Map();
-function send(obj) {
+function send(obj, maxSockets) {
   if (!obj.mid) obj.mid = myId + "-" + (++msgSeq);
   const pkt = mqttPub(TOPIC, JSON.stringify(obj));
   let n = 0;
   for (const s of sockets.values()) {
     if (!s.ok || !s.ws || s.ws.readyState !== WebSocket.OPEN) continue;
     try { s.ws.send(pkt); n++; } catch {}
+    if (maxSockets && n >= maxSockets) break;
   }
   mqttOk = n > 0;
 }
@@ -504,6 +510,11 @@ function unlockAudioPool() {
     if (p && p.catch) p.catch(() => {});
     audioSlots.push(el);
   }
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (Ctx && !relayCtx) {
+    try { relayCtx = new Ctx(); } catch {}
+  }
+  if (relayCtx && relayCtx.state === "suspended") relayCtx.resume().catch(() => {});
   kickAudio();
 }
 function takeAudioEl() {
@@ -623,8 +634,156 @@ function attachVideo(id, track) {
   publishFeeds();
 }
 
+function ulawEnc(sample) {
+  const BIAS = 0x84;
+  const CLIP = 32635;
+  let pcm = Math.max(-1, Math.min(1, sample)) * 32767;
+  const sign = pcm < 0 ? 0x80 : 0;
+  if (sign) pcm = -pcm;
+  if (pcm > CLIP) pcm = CLIP;
+  pcm += BIAS;
+  let exp = 7;
+  for (let mask = 0x4000; (pcm & mask) === 0 && exp > 0; exp--, mask >>= 1);
+  const mantissa = (pcm >> (exp + 3)) & 0x0f;
+  return (~(sign | (exp << 4) | mantissa)) & 0xff;
+}
+function ulawDec(u) {
+  u = ~u & 0xff;
+  const sign = u & 0x80;
+  const exp = (u >> 4) & 7;
+  const mantissa = u & 0x0f;
+  let sample = (((mantissa << 3) + 0x84) << exp) - 0x84;
+  if (sign) sample = -sample;
+  return sample / 32768;
+}
+function b64(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function unb64(s) {
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+let relayCtx = null;
+let relayProc = null;
+let relayMicId = "";
+const relayNext = new Map();
+function needRelay() {
+  if (phase !== "live") return false;
+  const mic = micTrack();
+  if (!mic || !mic.enabled) return false;
+  for (const id of Object.keys(remotes)) {
+    const L = links.get(id);
+    if (!L || !linkUp(L)) return true;
+  }
+  return false;
+}
+function ensureRelay() {
+  const mic = micTrack();
+  if (!mic) return;
+  if (relayProc && relayMicId === mic.id) {
+    if (relayCtx && relayCtx.state === "suspended") relayCtx.resume().catch(() => {});
+    return;
+  }
+  stopRelay();
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  try { relayCtx = relayCtx || new Ctx(); } catch { return; }
+  const resume = relayCtx.resume();
+  if (resume && resume.catch) resume.catch(() => {});
+  let src;
+  try { src = relayCtx.createMediaStreamSource(new MediaStream([mic])); } catch { return; }
+  const proc = relayCtx.createScriptProcessor(2048, 1, 1);
+  const pending = [];
+  proc.onaudioprocess = (ev) => {
+    if (!needRelay()) { pending.length = 0; return; }
+    const input = ev.inputBuffer.getChannelData(0);
+    const step = (relayCtx.sampleRate || 48000) / 8000;
+    for (let i = 0; i < input.length; i += step) pending.push(input[i | 0]);
+    if (pending.length < 1600) return;
+    const take = pending.splice(0, 1600);
+    const bytes = new Uint8Array(take.length);
+    for (let i = 0; i < take.length; i++) bytes[i] = ulawEnc(take[i]);
+    send({ t: "au", id: myId, d: b64(bytes) }, 2);
+  };
+  const mute = relayCtx.createGain();
+  mute.gain.value = 0;
+  src.connect(proc);
+  proc.connect(mute);
+  mute.connect(relayCtx.destination);
+  relayProc = proc;
+  relayMicId = mic.id;
+}
+function stopRelay() {
+  if (relayProc) {
+    try { relayProc.disconnect(); relayProc.onaudioprocess = null; } catch {}
+  }
+  relayProc = null;
+  relayMicId = "";
+}
+function playUlaw(id, bytes) {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  try { relayCtx = relayCtx || new Ctx(); } catch { return; }
+  try {
+  if (relayCtx.state === "suspended") relayCtx.resume().catch(() => {});
+  const floats = new Float32Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) floats[i] = ulawDec(bytes[i]);
+  const buf = relayCtx.createBuffer(1, floats.length, 8000);
+  buf.copyToChannel(floats, 0);
+  const src = relayCtx.createBufferSource();
+  src.buffer = buf;
+  const gain = relayCtx.createGain();
+  gain.gain.value = volumeFor(id);
+  src.connect(gain);
+  gain.connect(relayCtx.destination);
+  const slot = relayNext.get(id) || { next: 0 };
+  const start = Math.max(relayCtx.currentTime + 0.02, slot.next || 0);
+  if (slot.next && start - slot.next > 0.4) slot.next = relayCtx.currentTime + 0.05;
+  const at = Math.max(relayCtx.currentTime + 0.02, slot.next || 0);
+  src.start(at);
+  slot.next = at + buf.duration;
+  relayNext.set(id, slot);
+  } catch {}
+}
+function onAu(msg) {
+  if (!msg || msg.id === myId || !msg.d || typeof msg.d !== "string" || msg.d.length > 6000) return;
+  const L = links.get(msg.id);
+  if (L && linkUp(L)) return;
+  let bytes;
+  try { bytes = unb64(msg.d); } catch { return; }
+  if (!bytes.length || bytes.length > 4000) return;
+  const fresh = !relayHeard.has(msg.id);
+  relayHeard.set(msg.id, Date.now());
+  playUlaw(msg.id, bytes);
+  if (fresh) paint();
+}
+function waitGather(pc) {
+  if (!pc || pc.iceGatheringState === "complete" || pc.connectionState === "closed") return Promise.resolve();
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      pc.removeEventListener("icegatheringstatechange", onS);
+      pc.removeEventListener("icecandidate", onC);
+      resolve();
+    };
+    const onS = () => { if (pc.iceGatheringState === "complete") finish(); };
+    const onC = (ev) => {
+      const c = ev.candidate;
+      if (c && (c.type === "srflx" || c.type === "relay")) setTimeout(finish, 300);
+    };
+    pc.addEventListener("icegatheringstatechange", onS);
+    pc.addEventListener("icecandidate", onC);
+    setTimeout(finish, 1500);
+  });
+}
 function makePC(id) {
-  const pc = new RTCPeerConnection({ iceServers: ICE });
+  const pc = new RTCPeerConnection({ iceServers: ICE, bundlePolicy: "max-bundle", rtcpMuxPolicy: "require" });
   const L = { pc, audio: null, video: null, queue: [], gen: 0, offered: false, offerAt: 0, making: false };
   links.set(id, L);
   pc.onicecandidate = (ev) => {
@@ -644,6 +803,11 @@ function makePC(id) {
   pc.onconnectionstatechange = () => {
     if (links.get(id) !== L) return;
     if (pc.connectionState === "failed") closeLink(id);
+    paint();
+  };
+  pc.oniceconnectionstatechange = () => {
+    if (links.get(id) !== L) return;
+    if (pc.iceConnectionState === "failed") closeLink(id);
     paint();
   };
   return L;
@@ -693,16 +857,14 @@ async function offerTo(id) {
   try {
     L.gen += 1;
     if (!audioTr(L.pc)) L.pc.addTransceiver("audio", { direction: "sendrecv" });
-    if (!videoTr(L.pc)) L.pc.addTransceiver("video", { direction: "sendrecv" });
     const tr = audioTr(L.pc);
-    const vr = videoTr(L.pc);
     if (tr) tr.direction = "sendrecv";
-    if (vr) vr.direction = "sendrecv";
     await armSender(L, "audio", micTrack());
-    try { await armSender(L, "video", camTrack()); } catch {}
     const offer = await L.pc.createOffer();
     if (links.get(id) !== L) return;
     await L.pc.setLocalDescription(offer);
+    await waitGather(L.pc);
+    if (links.get(id) !== L || !L.pc.localDescription) return;
     L.offered = true;
     L.offerAt = Date.now();
     send({ t: "offer", from: myId, to: id, gen: L.gen, sdp: L.pc.localDescription.sdp });
@@ -720,11 +882,14 @@ async function reoffer(id) {
   L.making = true;
   try {
     L.gen += 1;
+    if (!videoTr(L.pc)) L.pc.addTransceiver("video", { direction: "sendrecv" });
     await armSender(L, "audio", micTrack());
     try { await armSender(L, "video", camTrack()); } catch {}
     const offer = await L.pc.createOffer();
     if (links.get(id) !== L) return;
     await L.pc.setLocalDescription(offer);
+    await waitGather(L.pc);
+    if (links.get(id) !== L || !L.pc.localDescription) return;
     L.offered = true;
     L.offerAt = Date.now();
     send({ t: "offer", from: myId, to: id, gen: L.gen, sdp: L.pc.localDescription.sdp });
@@ -737,24 +902,36 @@ async function reoffer(id) {
 async function onOffer(msg) {
   if (msg.to !== myId || !msg.sdp) return;
   let L = links.get(msg.from);
-  if (L && L.gen === msg.gen && L.pc.remoteDescription) return;
+  if (L && L.gen === msg.gen && L.pc.remoteDescription && L.pc.localDescription) {
+    send({ t: "answer", from: myId, to: msg.from, gen: L.gen, sdp: L.pc.localDescription.sdp });
+    return;
+  }
+  if (L && L.making) return;
   const wasUp = !!(L && linkUp(L));
   const keep = !!(wasUp && L.pc.signalingState !== "closed");
+  if (keep && L.pc.signalingState !== "stable") {
+    try { await L.pc.setLocalDescription({ type: "rollback" }); } catch {}
+  }
   if (L && !keep) closeLink(msg.from);
   if (!keep) L = makePC(msg.from);
   L.gen = msg.gen;
+  L.making = true;
   try {
     await L.pc.setRemoteDescription({ type: "offer", sdp: msg.sdp });
     for (const tr of L.pc.getTransceivers()) tr.direction = "sendrecv";
     await armSender(L, "audio", micTrack());
-    try { await armSender(L, "video", camTrack()); } catch {}
+    if (videoTr(L.pc)) { try { await armSender(L, "video", camTrack()); } catch {} }
     const answer = await L.pc.createAnswer();
     if (links.get(msg.from) !== L) return;
     await L.pc.setLocalDescription(answer);
+    await waitGather(L.pc);
+    if (links.get(msg.from) !== L || !L.pc.localDescription) return;
     flushIce(L, msg.from);
     send({ t: "answer", from: myId, to: msg.from, gen: L.gen, sdp: L.pc.localDescription.sdp });
   } catch {
     if (links.get(msg.from) === L && !wasUp) closeLink(msg.from);
+  } finally {
+    if (links.get(msg.from) === L) L.making = false;
   }
 }
 
@@ -821,6 +998,17 @@ function onMsg(text) {
   else if (msg.t === "offer") onOffer(msg).catch(() => {});
   else if (msg.t === "answer") onAnswer(msg).catch(() => {});
   else if (msg.t === "ice") onIce(msg);
+  else if (msg.t === "au") onAu(msg);
+  else if (msg.t === "want" && msg.to === myId && myId > msg.from) {
+    const L = links.get(msg.from);
+    if (L && L.making) return;
+    if (L && L.pc.signalingState === "have-local-offer" && L.pc.localDescription) {
+      if (!L.resent || Date.now() - L.resent > 2000) {
+        L.resent = Date.now();
+        send({ t: "offer", from: myId, to: msg.from, gen: L.gen, sdp: L.pc.localDescription.sdp });
+      }
+    } else if (!L || !linkUp(L)) offerTo(msg.from);
+  }
   else if (msg.t === "vref" && msg.to === myId && myId > msg.from) reoffer(msg.from);
 }
 
@@ -994,23 +1182,32 @@ setInterval(publishPos, 100);
 function ensureLinks() {
   const now = Date.now();
   for (const id of Object.keys(remotes)) {
-    if (!(myId > id)) continue;
     const L = links.get(id);
+    if (!(myId > id)) {
+      if (!L || !linkUp(L)) {
+        if (!wantAt.get(id) || now - wantAt.get(id) > 3000) {
+          wantAt.set(id, now);
+          send({ t: "want", from: myId, to: id });
+        }
+      }
+      continue;
+    }
     if (L && L.making) continue;
-    if (L && linkUp(L)) continue;
+    if (L && linkUp(L) && L.pc.signalingState === "stable") continue;
     if (L) {
       const ice = L.pc.iceConnectionState;
       const cs = L.pc.connectionState;
       const age = now - (L.offerAt || 0);
+      if (L.pc.signalingState === "have-local-offer" && age < 8000) {
+        if (age > 2500 && L.pc.localDescription && (!L.resent || now - L.resent > 2500)) {
+          L.resent = now;
+          send({ t: "offer", from: myId, to: id, gen: L.gen, sdp: L.pc.localDescription.sdp });
+        }
+        continue;
+      }
       const flappy = ice === "disconnected" || cs === "disconnected";
-      if (flappy) {
-        if (!L.downAt) L.downAt = now;
-        if (now - L.downAt < 20000) continue;
-      } else L.downAt = 0;
-      if ((ice === "checking" || ice === "new" || cs === "connecting" || cs === "new") && age < 12000) continue;
-      const dead = ice === "failed" || ice === "closed" || cs === "failed" || cs === "closed";
-      const stuck = flappy && L.downAt && now - L.downAt >= 20000;
-      if (L.offered && age < 12000 && !dead && !stuck) continue;
+      if (flappy && age < 8000) continue;
+      if ((ice === "checking" || ice === "new" || cs === "connecting") && age < 8000) continue;
       closeLink(id);
     }
     offerTo(id);
@@ -1036,8 +1233,10 @@ setInterval(() => {
     maybeRefreshVideo(id);
   }
   ensureLinks();
+  if (needRelay()) ensureRelay();
   publishFeeds();
   kickAudio();
+  paint();
 }, 800);
 
 setInterval(() => {
@@ -1082,6 +1281,7 @@ function useVoyage(stream) {
     pushMic(micTrack());
     publishHi();
     ensureLinks();
+    ensureRelay();
     paint();
   }
   if (videos.length && videoPhase !== "live") {
@@ -1124,6 +1324,7 @@ async function start() {
   kickAudio();
   publishHi();
   ensureLinks();
+  ensureRelay();
   paint();
 }
 
@@ -1331,6 +1532,7 @@ window.__spaceVoice = {
       })),
       mic: micTrack() ? micTrack().id : "",
       cam: camTrack() ? camTrack().id : "",
+      relay: relayHeard.size,
     };
   },
 };
