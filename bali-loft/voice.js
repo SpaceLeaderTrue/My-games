@@ -246,7 +246,7 @@ function cloneTrack(track) {
   }
 }
 function stopClone(track, original) {
-  if (!track || track === original || track._shared) return;
+  if (!track || track === original) return;
   if (track._stopDraw) track._stopDraw();
   try { track.stop(); } catch {}
 }
@@ -421,42 +421,7 @@ async function forkVideo(track) {
   try { out.contentHint = "motion"; } catch {}
   const timer = setInterval(draw, 66);
   out._stopDraw = () => clearInterval(timer);
-  out._shared = 1;
   return out;
-}
-let sharedCam = null;
-let sharedCamSrc = null;
-let sharedCamP = null;
-async function outgoingVideo(track) {
-  if (!track) return null;
-  if (sharedCam && sharedCamSrc === track && sharedCam.readyState === "live") return cloneTrack(sharedCam);
-  if (!sharedCamP || sharedCamSrc !== track) {
-    sharedCamSrc = track;
-    const src = track;
-    sharedCamP = forkVideo(src).then((next) => {
-      if (sharedCam && sharedCam !== next) {
-        const old = sharedCam;
-        sharedCam = null;
-        old._shared = 0;
-        stopClone(old, src);
-      }
-      sharedCam = next || null;
-      return sharedCam;
-    });
-  }
-  const next = await sharedCamP;
-  return next ? cloneTrack(next) : null;
-}
-function releaseSharedVideo() {
-  let used = false;
-  for (const L of links.values()) if (L.camClone) { used = true; break; }
-  if (used || !sharedCam) return;
-  const old = sharedCam;
-  sharedCam = null;
-  sharedCamSrc = null;
-  sharedCamP = null;
-  old._shared = 0;
-  stopClone(old, null);
 }
 function linkUp(L) {
   if (!L) return false;
@@ -468,7 +433,7 @@ async function armSender(L, kind, track) {
   if (!tr || !tr.sender) return;
   const key = kind === "audio" ? "micClone" : "camClone";
   const prev = L[key];
-  const next = !track ? null : kind === "video" ? await outgoingVideo(track) : cloneTrack(track);
+  const next = !track ? null : kind === "video" ? await forkVideo(track) : cloneTrack(track);
   L[key] = next;
   if (prev && prev !== next) stopClone(prev, track);
   try {
@@ -477,12 +442,11 @@ async function armSender(L, kind, track) {
       const params = tr.sender.getParameters();
       if (!params.encodings || !params.encodings.length) params.encodings = [{}];
       const peers = Math.max(1, links.size);
-      params.encodings[0].maxBitrate = Math.max(160000, Math.min(450000, Math.floor(1400000 / peers)));
+      params.encodings[0].maxBitrate = Math.max(180000, Math.min(900000, Math.floor(900000 / peers)));
       params.encodings[0].maxFramerate = 15;
       await tr.sender.setParameters(params);
     }
   } catch {}
-  if (kind === "video") releaseSharedVideo();
 }
 function closeLink(id) {
   const L = links.get(id);
@@ -492,7 +456,6 @@ function closeLink(id) {
   stopClone(L.camClone, camTrack());
   try { L.pc.ontrack = null; L.pc.onicecandidate = null; L.pc.close(); } catch {}
   if (L.audio) releaseAudioEl(L.audio);
-  releaseSharedVideo();
   if (L.video) {
     try { L.video.pause(); L.video.srcObject = null; L.video.remove(); } catch {}
   }
@@ -533,7 +496,7 @@ function prepAudioEl(el) {
   return el;
 }
 function unlockAudioPool() {
-  for (let i = audioSlots.length; i < 10; i++) {
+  for (let i = audioSlots.length; i < 8; i++) {
     const el = prepAudioEl(document.createElement("audio"));
     el.src = SILENT;
     document.body.appendChild(el);
@@ -736,7 +699,7 @@ async function offerTo(id) {
     if (tr) tr.direction = "sendrecv";
     if (vr) vr.direction = "sendrecv";
     await armSender(L, "audio", micTrack());
-    await armSender(L, "video", camTrack());
+    try { await armSender(L, "video", camTrack()); } catch {}
     const offer = await L.pc.createOffer();
     if (links.get(id) !== L) return;
     await L.pc.setLocalDescription(offer);
@@ -758,7 +721,7 @@ async function reoffer(id) {
   try {
     L.gen += 1;
     await armSender(L, "audio", micTrack());
-    await armSender(L, "video", camTrack());
+    try { await armSender(L, "video", camTrack()); } catch {}
     const offer = await L.pc.createOffer();
     if (links.get(id) !== L) return;
     await L.pc.setLocalDescription(offer);
@@ -776,7 +739,7 @@ async function onOffer(msg) {
   let L = links.get(msg.from);
   if (L && L.gen === msg.gen && L.pc.remoteDescription) return;
   const wasUp = !!(L && linkUp(L));
-  const keep = !!(L && L.pc.signalingState !== "closed" && (wasUp || L.pc.signalingState === "stable"));
+  const keep = !!(wasUp && L.pc.signalingState !== "closed");
   if (L && !keep) closeLink(msg.from);
   if (!keep) L = makePC(msg.from);
   L.gen = msg.gen;
@@ -784,7 +747,7 @@ async function onOffer(msg) {
     await L.pc.setRemoteDescription({ type: "offer", sdp: msg.sdp });
     for (const tr of L.pc.getTransceivers()) tr.direction = "sendrecv";
     await armSender(L, "audio", micTrack());
-    await armSender(L, "video", camTrack());
+    try { await armSender(L, "video", camTrack()); } catch {}
     const answer = await L.pc.createAnswer();
     if (links.get(msg.from) !== L) return;
     await L.pc.setLocalDescription(answer);
@@ -1044,10 +1007,9 @@ function ensureLinks() {
         if (!L.downAt) L.downAt = now;
         if (now - L.downAt < 20000) continue;
       } else L.downAt = 0;
-      if ((ice === "checking" || ice === "new" || cs === "connecting" || cs === "new") && age < 25000) continue;
+      if ((ice === "checking" || ice === "new" || cs === "connecting" || cs === "new") && age < 12000) continue;
       const dead = ice === "failed" || ice === "closed" || cs === "failed" || cs === "closed";
       const stuck = flappy && L.downAt && now - L.downAt >= 20000;
-      if (!dead && !stuck && L.audio && L.audio.srcObject) continue;
       if (L.offered && age < 12000 && !dead && !stuck) continue;
       closeLink(id);
     }
